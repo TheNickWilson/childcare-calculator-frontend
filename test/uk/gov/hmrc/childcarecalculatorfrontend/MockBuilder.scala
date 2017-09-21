@@ -124,3 +124,5 @@ trait MockBuilder {
   }
 
 }
+
+object MockBuilder extends MockBuilder

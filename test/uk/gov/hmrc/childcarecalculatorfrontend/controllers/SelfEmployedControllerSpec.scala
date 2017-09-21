@@ -21,14 +21,14 @@ import org.mockito.Matchers.any
 import org.mockito.Mockito.{reset, when}
 import org.scalatest.BeforeAndAfterEach
 import play.api.i18n.Messages.Implicits._
-import play.api.libs.json.{Format, Reads}
+import play.api.libs.json.Reads
 import play.api.test.Helpers._
 import uk.gov.hmrc.childcarecalculatorfrontend.ControllersValidator
 import uk.gov.hmrc.childcarecalculatorfrontend.models.YouPartnerBothEnum.YouPartnerBothEnum
 import uk.gov.hmrc.childcarecalculatorfrontend.models._
+import uk.gov.hmrc.childcarecalculatorfrontend.MockBuilder._
 import uk.gov.hmrc.childcarecalculatorfrontend.services.KeystoreService
 import uk.gov.hmrc.play.http.HeaderCarrier
-
 import scala.concurrent.Future
 
 class SelfEmployedControllerSpec extends ControllersValidator with BeforeAndAfterEach {
@@ -47,27 +47,27 @@ class SelfEmployedControllerSpec extends ControllersValidator with BeforeAndAfte
     "onPageLoad is called" should {
 
       "redirect successfully if there is no data in keystore if parent" in {
-        setupMocks()
+        setupMocks(selfEmployedController.keystore)
         val result = await(selfEmployedController.onPageLoad(false)(request.withSession(validSession)))
         status(result) shouldBe SEE_OTHER
         result.header.headers("Location") shouldBe technicalDifficultiesPath
       }
 
       "redirect successfully if there is no data in keystore if partner" in {
-        setupMocks()
+        setupMocks(selfEmployedController.keystore)
         val result = await(selfEmployedController.onPageLoad(true)(request.withSession(validSession)))
         status(result) shouldBe SEE_OTHER
         result.header.headers("Location") shouldBe technicalDifficultiesPath
       }
 
       "load successfully parent template" in {
-        setupMocks(modelToFetch = Some(buildPageObjects(isPartner = false, parentSelfEmployedIn12Months = Some(true))))
+        setupMocks(selfEmployedController.keystore, modelToFetch = Some(buildPageObjects(isPartner = false, parentSelfEmployedIn12Months = Some(true))))
         val result = await(selfEmployedController.onPageLoad(false)(request.withSession(validSession)))
         status(result) shouldBe OK
       }
 
       "load successfully partner template" in {
-        setupMocks(Some(buildPageObjects(isPartner = true, partnerSelfEmployedIn12Months = Some(true))))
+        setupMocks(selfEmployedController.keystore, Some(buildPageObjects(isPartner = true, partnerSelfEmployedIn12Months = Some(true))))
 
         when(
           selfEmployedController.keystore.fetch[PageObjects]()(any[HeaderCarrier], any[Reads[PageObjects]])
@@ -82,7 +82,7 @@ class SelfEmployedControllerSpec extends ControllersValidator with BeforeAndAfte
 
       "load template successfully if there is data in keystore for parent and define correctly backUrl" when {
         "redirect to parent's self or apprentice page" in {
-          setupMocks(Some(buildPageObjects(isPartner = false, parentEarnMoreThanNMW = Some(false))))
+          setupMocks(selfEmployedController.keystore, Some(buildPageObjects(isPartner = false, parentEarnMoreThanNMW = Some(false))))
           val result = await(selfEmployedController.onPageLoad(false)(request.withSession(validSession)))
           status(result) shouldBe OK
           result.body.contentType.get shouldBe "text/html; charset=utf-8"
@@ -91,7 +91,7 @@ class SelfEmployedControllerSpec extends ControllersValidator with BeforeAndAfte
         }
 
         "redirect to error page if can't connect with keystore" in {
-          setupMocksForException()
+          setupMocksForException(selfEmployedController.keystore)
           val result = await(selfEmployedController.onPageLoad(false)(request.withSession(validSession)))
           status(result) shouldBe SEE_OTHER
           result.header.headers("Location") shouldBe technicalDifficultiesPath
@@ -100,7 +100,8 @@ class SelfEmployedControllerSpec extends ControllersValidator with BeforeAndAfte
 
       "load template successfully if there is data in keystore for partner and display correct backUrl" when {
         "redirect to partner's self or apprentice page" in {
-          setupMocks(Some(buildPageObjects(isPartner = true,
+          setupMocks(selfEmployedController.keystore,
+                Some(buildPageObjects(isPartner = true,
                 partnerEarnMoreThanNMW = Some(false)))
             )
           val result = await(selfEmployedController.onPageLoad(true)(request.withSession(validSession)))
@@ -112,7 +113,7 @@ class SelfEmployedControllerSpec extends ControllersValidator with BeforeAndAfte
         }
 
         "redirect to error page if can't connect with keystore if partner" in {
-          setupMocksForException()
+          setupMocksForException(selfEmployedController.keystore)
           val result = await(selfEmployedController.onPageLoad(true)(request.withSession(validSession)))
           status(result) shouldBe SEE_OTHER
           result.header.headers("Location") shouldBe technicalDifficultiesPath
@@ -124,8 +125,9 @@ class SelfEmployedControllerSpec extends ControllersValidator with BeforeAndAfte
     "onSubmit is called" when {
 
       "connecting with keystore fails" in {
-        setupMocks(modelToFetch = Some(buildPageObjects(true, None)))
-        setupMocksForException()
+        setupMocks(selfEmployedController.keystore, modelToFetch = Some(buildPageObjects(true, None)))
+        setupMocksForException(selfEmployedController.keystore)
+
         val result = await(
           selfEmployedController.onSubmit(true)(
             request
@@ -139,9 +141,11 @@ class SelfEmployedControllerSpec extends ControllersValidator with BeforeAndAfte
 
       "there are errors" should {
         "load same template and return BAD_REQUEST as a partner" in {
-          setupMocks(modelToFetch = Some(buildPageObjects(true,
+          setupMocks(selfEmployedController.keystore,
+            modelToFetch = Some(buildPageObjects(true,
             partnerEarnMoreThanNMW = Some(false)
           )))
+
           val result = await(
             selfEmployedController.onSubmit(true)(
               request
@@ -154,7 +158,8 @@ class SelfEmployedControllerSpec extends ControllersValidator with BeforeAndAfte
         }
 
         "load same template and return BAD_REQUEST as a parent" in {
-          setupMocks(modelToFetch = Some(buildPageObjects(false)))
+          setupMocks(selfEmployedController.keystore,
+            modelToFetch = Some(buildPageObjects(false)))
 
           val result = await(
             selfEmployedController.onSubmit(false)(
@@ -171,7 +176,7 @@ class SelfEmployedControllerSpec extends ControllersValidator with BeforeAndAfte
       "saving in keystore is successful as a partner with SelfEmployed = true" should {
 
         s"there is no data in keystore for PageObjects object for partner" in {
-          setupMocks()
+          setupMocks(selfEmployedController.keystore)
           val result = await(
             selfEmployedController.onSubmit(true)(
               request
@@ -195,7 +200,9 @@ class SelfEmployedControllerSpec extends ControllersValidator with BeforeAndAfte
                 partnerSelfEmployedIn12Months = Some(true)
               )
 
-          setupMocks(modelToFetch = Some(model), modelToStore = Some(modelToStore), storePageObjects = true)
+          setupMocks(selfEmployedController.keystore,
+            modelToFetch = Some(model),
+            modelToStore = Some(modelToStore), storePageObjects = true)
 
           val result = await(
             selfEmployedController.onSubmit(true)(
@@ -221,7 +228,10 @@ class SelfEmployedControllerSpec extends ControllersValidator with BeforeAndAfte
                 partnerSelfEmployedIn12Months = Some(false),
                 whichOfYouInPaidEmployment = Some(YouPartnerBothEnum.BOTH))
 
-          setupMocks(modelToFetch = Some(model), modelToStore = Some(modelToStore), storePageObjects = true)
+          setupMocks(selfEmployedController.keystore,
+            modelToFetch = Some(model),
+            modelToStore = Some(modelToStore),
+            storePageObjects = true)
 
           val result = await(
             selfEmployedController.onSubmit(true)(
@@ -243,7 +253,10 @@ class SelfEmployedControllerSpec extends ControllersValidator with BeforeAndAfte
                 partnerSelfEmployedIn12Months = Some(false),
                 whichOfYouInPaidEmployment = Some(YouPartnerBothEnum.PARTNER))
 
-          setupMocks(modelToFetch = Some(model), modelToStore = Some(modelToStore), storePageObjects = true)
+          setupMocks(selfEmployedController.keystore,
+            modelToFetch = Some(model),
+            modelToStore = Some(modelToStore),
+            storePageObjects = true)
 
 
           val result = await(
@@ -271,7 +284,10 @@ class SelfEmployedControllerSpec extends ControllersValidator with BeforeAndAfte
                 whichOfYouInPaidEmployment = Some(YouPartnerBothEnum.BOTH),
                 parentSelfEmployedIn12Months = Some(true))
 
-          setupMocks(modelToFetch = Some(model), modelToStore = Some(modelToStore), storePageObjects = true)
+          setupMocks(selfEmployedController.keystore,
+            modelToFetch = Some(model),
+            modelToStore = Some(modelToStore),
+            storePageObjects = true)
 
           val result = await(
             selfEmployedController.onSubmit(false)(
@@ -297,7 +313,10 @@ class SelfEmployedControllerSpec extends ControllersValidator with BeforeAndAfte
                 partnerEarnMoreThanNMW = Some(true),
                 parentSelfEmployedIn12Months = Some(true))
 
-          setupMocks(modelToFetch = Some(model), modelToStore = Some(modelToStore), storePageObjects = true)
+          setupMocks(selfEmployedController.keystore,
+            modelToFetch = Some(model),
+            modelToStore = Some(modelToStore),
+            storePageObjects = true)
 
           val result = await(
             selfEmployedController.onSubmit(false)(
@@ -315,7 +334,7 @@ class SelfEmployedControllerSpec extends ControllersValidator with BeforeAndAfte
      "saving in keystore is successful as a parent and SelfEmployed = false" should {
 
         s"there is no data in keystore for PageObjects object for parent" in {
-          setupMocks()
+          setupMocks(selfEmployedController.keystore)
 
           val result = await(
             selfEmployedController.onSubmit(false)(
@@ -331,7 +350,10 @@ class SelfEmployedControllerSpec extends ControllersValidator with BeforeAndAfte
         s"redirect to ${creditsPath} page" in {
           val model = buildPageObjects(isPartner = false, parentSelfEmployedIn12Months = Some(false))
 
-          setupMocks(modelToFetch = Some(model), modelToStore = Some(model), storePageObjects = true)
+          setupMocks(selfEmployedController.keystore,
+            modelToFetch = Some(model),
+            modelToStore = Some(model),
+            storePageObjects = true)
 
           val result = await(
             selfEmployedController.onSubmit(false)(
@@ -371,33 +393,4 @@ class SelfEmployedControllerSpec extends ControllersValidator with BeforeAndAfte
     }
   }
 
-  private def setupMocks(modelToFetch: Option[PageObjects] = None,
-                         modelToStore: Option[PageObjects] = None,
-                         fetchPageObjects: Boolean = true,
-                         storePageObjects: Boolean = false) = {
-    if (fetchPageObjects) {
-      when(
-        selfEmployedController.keystore.fetch[PageObjects]()(any[HeaderCarrier], any[Reads[PageObjects]])
-      ).thenReturn(
-          Future.successful(modelToFetch)
-        )
-    }
-
-    if (storePageObjects) {
-      when(
-        selfEmployedController.keystore.cache[PageObjects](any[PageObjects])(any[HeaderCarrier], any[Format[PageObjects]])
-      ).thenReturn(
-          Future.successful(modelToStore)
-        )
-
-    }
-  }
-
-  private def setupMocksForException() = {
-    when(
-      selfEmployedController.keystore.fetch[PageObjects]()(any[HeaderCarrier], any[Reads[PageObjects]])
-    ).thenReturn(
-        Future.failed(new RuntimeException)
-      )
-  }
 }
