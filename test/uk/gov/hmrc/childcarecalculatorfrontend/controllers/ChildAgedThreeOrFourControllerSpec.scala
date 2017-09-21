@@ -21,52 +21,43 @@ import org.mockito.Matchers._
 import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterEach
 import play.api.i18n.Messages.Implicits._
+import play.api.libs.json.{Format, Reads}
 import play.api.test.Helpers._
 import uk.gov.hmrc.childcarecalculatorfrontend.ControllersValidator
+import uk.gov.hmrc.childcarecalculatorfrontend.models.YouPartnerBothEnum._
 import uk.gov.hmrc.childcarecalculatorfrontend.models.{Household, LocationEnum, PageObjects}
 import uk.gov.hmrc.childcarecalculatorfrontend.services.KeystoreService
+import uk.gov.hmrc.play.http.HeaderCarrier
 
 import scala.concurrent.Future
 
 class ChildAgedThreeOrFourControllerSpec extends ControllersValidator with BeforeAndAfterEach {
 
-  val sut = new ChildAgedThreeOrFourController(applicationMessagesApi) {
+  val childAgedThreeOrFourController = new ChildAgedThreeOrFourController(applicationMessagesApi) {
     override val keystore: KeystoreService = mock[KeystoreService]
   }
 
   override def beforeEach(): Unit = {
     super.beforeEach()
-    reset(sut.keystore)
+    reset(childAgedThreeOrFourController.keystore)
   }
 
-  validateUrl(childAgedThreeOrFourPath)
-
-  def buildPageObjects(childAgedTwo: Option[Boolean] = None,
-                       childAgedThreeOrFour: Option[Boolean] = None): PageObjects = PageObjects(household = Household(
-    location = LocationEnum.ENGLAND),
-    childAgedTwo = childAgedTwo,
-    childAgedThreeOrFour = childAgedThreeOrFour
-  )
 
   "onPageLoad" should {
     "load successfully ChildAgedThreeOrFour template" when {
 
       "there is no data in keystore about child aged 3 or 4" should {
         s"contain back url to ${locationPath} if there is no data about child aged 2" in {
-          when(
-            sut.keystore.fetch[PageObjects]()(any(),any())
-          ).thenReturn(
-            Future.successful(
-              Some(
-                buildPageObjects(
-                  childAgedTwo = None,
-                  childAgedThreeOrFour = None
-                )
+          setupMocks(
+            Some(
+              buildPageObjects(
+                childAgedTwo = None,
+                childAgedThreeOrFour = None
               )
             )
           )
 
-          val result = await(sut.onPageLoad(false)(request.withSession(validSession)))
+          val result = await(childAgedThreeOrFourController.onPageLoad(false)(request.withSession(validSession)))
           status(result) shouldBe OK
           result.body.contentType.get shouldBe "text/html; charset=utf-8"
           val content = Jsoup.parse(bodyOf(result))
@@ -74,20 +65,16 @@ class ChildAgedThreeOrFourControllerSpec extends ControllersValidator with Befor
         }
 
         s"contain back url to ${childAgedTwoPath} if there is data about child aged 2" in {
-          when(
-            sut.keystore.fetch[PageObjects]()(any(),any())
-          ).thenReturn(
-            Future.successful(
-              Some(
-                buildPageObjects(
-                  childAgedTwo = Some(true),
-                  childAgedThreeOrFour = None
-                )
+          setupMocks(
+            Some(
+              buildPageObjects(
+                childAgedTwo = Some(true),
+                childAgedThreeOrFour = None
               )
             )
           )
 
-          val result = await(sut.onPageLoad(false)(request.withSession(validSession)))
+          val result = await(childAgedThreeOrFourController.onPageLoad(false)(request.withSession(validSession)))
           status(result) shouldBe OK
           result.body.contentType.get shouldBe "text/html; charset=utf-8"
           val content = Jsoup.parse(bodyOf(result))
@@ -97,20 +84,16 @@ class ChildAgedThreeOrFourControllerSpec extends ControllersValidator with Befor
 
       "there is data in keystore about child aged 3 or 4" should {
         s"contain back url to ${locationPath} if there is no data about child aged 2" in {
-          when(
-            sut.keystore.fetch[PageObjects]()(any(),any())
-          ).thenReturn(
-            Future.successful(
-              Some(
-                buildPageObjects(
-                  childAgedTwo = None,
-                  childAgedThreeOrFour = Some(true)
-                )
+          setupMocks(
+            Some(
+              buildPageObjects(
+                childAgedTwo = None,
+                childAgedThreeOrFour = Some(true)
               )
             )
           )
 
-          val result = await(sut.onPageLoad(false)(request.withSession(validSession)))
+          val result = await(childAgedThreeOrFourController.onPageLoad(false)(request.withSession(validSession)))
           status(result) shouldBe OK
           result.body.contentType.get shouldBe "text/html; charset=utf-8"
           val content = Jsoup.parse(bodyOf(result))
@@ -118,20 +101,16 @@ class ChildAgedThreeOrFourControllerSpec extends ControllersValidator with Befor
         }
 
         s"contain back url to free-hours-results if there is no data about child aged 2 and summary is true" in {
-          when(
-            sut.keystore.fetch[PageObjects]()(any(),any())
-          ).thenReturn(
-            Future.successful(
-              Some(
-                buildPageObjects(
-                  childAgedTwo = None,
-                  childAgedThreeOrFour = Some(true)
-                )
+          setupMocks(
+            Some(
+              buildPageObjects(
+                childAgedTwo = None,
+                childAgedThreeOrFour = Some(true)
               )
             )
           )
 
-          val result = await(sut.onPageLoad(true)(request.withSession(validSession)))
+          val result = await(childAgedThreeOrFourController.onPageLoad(true)(request.withSession(validSession)))
           status(result) shouldBe OK
           result.body.contentType.get shouldBe "text/html; charset=utf-8"
           val content = Jsoup.parse(bodyOf(result))
@@ -139,20 +118,16 @@ class ChildAgedThreeOrFourControllerSpec extends ControllersValidator with Befor
         }
 
         s"contain back url to ${childAgedTwoPath} if there is data about child aged 2" in {
-          when(
-            sut.keystore.fetch[PageObjects]()(any(),any())
-          ).thenReturn(
-            Future.successful(
-              Some(
-                buildPageObjects(
-                  childAgedTwo = Some(true),
-                  childAgedThreeOrFour = Some(true)
-                )
+          setupMocks(
+            Some(
+              buildPageObjects(
+                childAgedTwo = Some(true),
+                childAgedThreeOrFour = Some(true)
               )
             )
           )
 
-          val result = await(sut.onPageLoad(false)(request.withSession(validSession)))
+          val result = await(childAgedThreeOrFourController.onPageLoad(false)(request.withSession(validSession)))
           status(result) shouldBe OK
           result.body.contentType.get shouldBe "text/html; charset=utf-8"
           val content = Jsoup.parse(bodyOf(result))
@@ -163,25 +138,17 @@ class ChildAgedThreeOrFourControllerSpec extends ControllersValidator with Befor
 
     s"redirect to technical difficulties page (${technicalDifficultiesPath})" when {
       "there is no data for household in keystore" in {
-        when(
-          sut.keystore.fetch[PageObjects]()(any(),any())
-        ).thenReturn(
-          Future.successful(None)
-        )
+        setupMocks()
 
-        val result = await(sut.onPageLoad(false)(request.withSession(validSession)))
+        val result = await(childAgedThreeOrFourController.onPageLoad(false)(request.withSession(validSession)))
         status(result) shouldBe SEE_OTHER
         result.header.headers("Location") shouldBe technicalDifficultiesPath
       }
 
       "can't connect to keystore" in {
-        when(
-          sut.keystore.fetch[PageObjects]()(any(),any())
-        ).thenReturn(
-          Future.failed(new RuntimeException)
-        )
+        setupMocksForException()
 
-        val result = await(sut.onPageLoad(false)(request.withSession(validSession)))
+        val result = await(childAgedThreeOrFourController.onPageLoad(false)(request.withSession(validSession)))
         status(result) shouldBe SEE_OTHER
         result.header.headers("Location") shouldBe technicalDifficultiesPath
       }
@@ -192,20 +159,16 @@ class ChildAgedThreeOrFourControllerSpec extends ControllersValidator with Befor
     "load template with status BAD_REQUEST" when {
       "invalid data is submitted" should {
         s"cantain back url to ${locationPath} if there is no data in keystore about child aged 2" in {
-          when(
-            sut.keystore.fetch[PageObjects]()(any(),any())
-          ).thenReturn(
-            Future.successful(
-              Some(
-                buildPageObjects(
-                  childAgedTwo = None,
-                  childAgedThreeOrFour = None
-                )
+          setupMocks(
+            Some(
+              buildPageObjects(
+                childAgedTwo = None,
+                childAgedThreeOrFour = None
               )
             )
           )
 
-          val result = await(sut.onSubmit(request.withSession(validSession)))
+          val result = await(childAgedThreeOrFourController.onSubmit(request.withSession(validSession)))
           status(result) shouldBe BAD_REQUEST
           result.body.contentType.get shouldBe "text/html; charset=utf-8"
           val content = Jsoup.parse(bodyOf(result))
@@ -213,20 +176,15 @@ class ChildAgedThreeOrFourControllerSpec extends ControllersValidator with Befor
         }
 
         s"contain back url to ${childAgedTwoPath} if there is data in keystore about child aged 2" in {
-          when(
-            sut.keystore.fetch[PageObjects]()(any(),any())
-          ).thenReturn(
-            Future.successful(
-              Some(
-                buildPageObjects(
-                  childAgedTwo = Some(true),
-                  childAgedThreeOrFour = None
-                )
+          setupMocks(
+            Some(
+              buildPageObjects(
+                childAgedTwo = Some(true),
+                childAgedThreeOrFour = None
               )
             )
           )
-
-          val result = await(sut.onSubmit(request.withSession(validSession)))
+          val result = await(childAgedThreeOrFourController.onSubmit(request.withSession(validSession)))
           status(result) shouldBe BAD_REQUEST
           result.body.contentType.get shouldBe "text/html; charset=utf-8"
           val content = Jsoup.parse(bodyOf(result))
@@ -237,32 +195,24 @@ class ChildAgedThreeOrFourControllerSpec extends ControllersValidator with Befor
 
     s"redirect to error page (${technicalDifficultiesPath})" when {
       "there is no data in keystore for PageObjects object" in {
-        when(
-          sut.keystore.fetch[PageObjects]()(any(),any())
-        ).thenReturn(
-          Future.successful(None)
-        )
+        setupMocks()
 
-        val result = await(sut.onSubmit(request.withSession(validSession)))
+        val result = await(childAgedThreeOrFourController.onSubmit(request.withSession(validSession)))
         status(result) shouldBe SEE_OTHER
         result.header.headers("Location") shouldBe technicalDifficultiesPath
       }
 
       "can't connect to keystore loading PageObjects object" in {
-        when(
-          sut.keystore.fetch[PageObjects]()(any(),any())
-        ).thenReturn(
-          Future.failed(new RuntimeException)
-        )
+        setupMocksForException()
 
-        val result = await(sut.onSubmit(request.withSession(validSession)))
+        val result = await(childAgedThreeOrFourController.onSubmit(request.withSession(validSession)))
         status(result) shouldBe SEE_OTHER
         result.header.headers("Location") shouldBe technicalDifficultiesPath
       }
 
       "valid data is submitted and saving in keystore fails" in {
         when(
-          sut.keystore.fetch[PageObjects]()(any(),any())
+          childAgedThreeOrFourController.keystore.fetch[PageObjects]()(any(),any())
         ).thenReturn(
           Future.successful(
             Some(
@@ -275,12 +225,14 @@ class ChildAgedThreeOrFourControllerSpec extends ControllersValidator with Befor
         )
 
         when(
-          sut.keystore.cache(any[PageObjects]())(any(),any())
+          childAgedThreeOrFourController.keystore.cache(any[PageObjects]())(any(),any())
         ).thenReturn(
           Future.failed(new RuntimeException)
         )
+
+
         val result = await(
-          sut.onSubmit(
+          childAgedThreeOrFourController.onSubmit(
             request
               .withFormUrlEncodedBody(childAgedThreeOrFourKey -> "true")
               .withSession(validSession)
@@ -293,34 +245,21 @@ class ChildAgedThreeOrFourControllerSpec extends ControllersValidator with Befor
 
     s"redirect to next page (${expectChildcareCostsPath})" when {
       "valid data is submitted and saving in keystore is successful" in {
-        when(
-          sut.keystore.fetch[PageObjects]()(any(),any())
-        ).thenReturn(
-          Future.successful(
-            Some(
-              buildPageObjects(
+        val model = buildPageObjects(
                 childAgedTwo = None,
                 childAgedThreeOrFour = None
               )
-            )
-          )
-        )
 
-        when(
-          sut.keystore.cache(any[PageObjects]())(any(),any())
-        ).thenReturn(
-          Future.successful(
-            Some(
-              buildPageObjects(
+        val modelToStore = buildPageObjects(
                 childAgedTwo = None,
                 childAgedThreeOrFour = Some(true)
               )
-            )
-          )
-        )
+
+        setupMocks(modelToFetch = Some(model), modelToStore = Some(modelToStore), storePageObjects = true)
+
 
         val result = await(
-          sut.onSubmit(
+          childAgedThreeOrFourController.onSubmit(
             request
               .withFormUrlEncodedBody(childAgedThreeOrFourKey -> "true")
               .withSession(validSession)
@@ -332,4 +271,43 @@ class ChildAgedThreeOrFourControllerSpec extends ControllersValidator with Befor
     }
   }
 
+
+  validateUrl(childAgedThreeOrFourPath)
+
+  def buildPageObjects(childAgedTwo: Option[Boolean] = None,
+                       childAgedThreeOrFour: Option[Boolean] = None): PageObjects = PageObjects(household = Household(
+    location = LocationEnum.ENGLAND),
+    childAgedTwo = childAgedTwo,
+    childAgedThreeOrFour = childAgedThreeOrFour
+  )
+  
+  private def setupMocks(modelToFetch: Option[PageObjects] = None,
+                         modelToStore: Option[PageObjects] = None,
+                         fetchPageObjects: Boolean = true,
+                         storePageObjects: Boolean = false) = {
+    if (fetchPageObjects) {
+      when(
+        childAgedThreeOrFourController.keystore.fetch[PageObjects]()(any[HeaderCarrier], any[Reads[PageObjects]])
+      ).thenReturn(
+          Future.successful(modelToFetch)
+        )
+    }
+
+    if (storePageObjects) {
+      when(
+        childAgedThreeOrFourController.keystore.cache[PageObjects](any[PageObjects])(any[HeaderCarrier], any[Format[PageObjects]])
+      ).thenReturn(
+          Future.successful(modelToStore)
+        )
+
+    }
+  }
+
+  private def setupMocksForException() = {
+    when(
+      childAgedThreeOrFourController.keystore.fetch[PageObjects]()(any[HeaderCarrier], any[Reads[PageObjects]])
+    ).thenReturn(
+        Future.failed(new RuntimeException)
+      )
+  }
 }

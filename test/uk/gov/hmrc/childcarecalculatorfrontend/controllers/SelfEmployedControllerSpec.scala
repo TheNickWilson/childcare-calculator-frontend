@@ -42,58 +42,6 @@ class SelfEmployedControllerSpec extends ControllersValidator with BeforeAndAfte
     reset(selfEmployedController.keystore)
   }
 
-  validateUrl(selfEmployedParentPath)
-  validateUrl(selfEmployedPartnerPath)
-
-  def buildPageObjects(isPartner: Boolean,
-                       parentEarnMoreThanNMW: Option[Boolean] = None,
-                       partnerEarnMoreThanNMW: Option[Boolean] = None,
-                       parentSelfEmployedIn12Months: Option[Boolean] = None,
-                       partnerSelfEmployedIn12Months: Option[Boolean] = None,
-                       whichOfYouInPaidEmployment: Option[YouPartnerBothEnum] = None
-                      ): PageObjects = {
-    val parent = Claimant(minimumEarnings = Some(MinimumEarnings(earnMoreThanNMW = parentEarnMoreThanNMW,
-      selfEmployedIn12Months = parentSelfEmployedIn12Months)))
-    val partner = Claimant(minimumEarnings = Some(MinimumEarnings(earnMoreThanNMW = partnerEarnMoreThanNMW,
-      selfEmployedIn12Months = partnerSelfEmployedIn12Months)))
-    if (isPartner) {
-      PageObjects(whichOfYouInPaidEmployment = whichOfYouInPaidEmployment, household = Household(location = LocationEnum.ENGLAND, parent = parent,
-        partner = Some(partner)))
-    } else {
-      PageObjects(whichOfYouInPaidEmployment = whichOfYouInPaidEmployment, household = Household(location = LocationEnum.ENGLAND, parent = parent))
-    }
-  }
-
-  private def setupMocks(modelToFetch: Option[PageObjects] = None,
-                         modelToStore: Option[PageObjects] = None,
-                         fetchPageObjects: Boolean = true,
-                         storePageObjects: Boolean = false) = {
-    if (fetchPageObjects) {
-      when(
-        selfEmployedController.keystore.fetch[PageObjects]()(any[HeaderCarrier], any[Reads[PageObjects]])
-      ).thenReturn(
-          Future.successful(modelToFetch)
-        )
-    }
-
-    if (storePageObjects) {
-      when(
-        selfEmployedController.keystore.cache[PageObjects](any[PageObjects])(any[HeaderCarrier], any[Format[PageObjects]])
-      ).thenReturn(
-          Future.successful(modelToStore)
-        )
-
-    }
-  }
-
-  private def setupMocksForException() = {
-    when(
-      selfEmployedController.keystore.fetch[PageObjects]()(any[HeaderCarrier], any[Reads[PageObjects]])
-    ).thenReturn(
-        Future.failed(new RuntimeException)
-      )
-  }
-
   "SelfEmployedController" when {
 
     "onPageLoad is called" should {
@@ -382,7 +330,7 @@ class SelfEmployedControllerSpec extends ControllersValidator with BeforeAndAfte
 
         s"redirect to ${creditsPath} page" in {
           val model = buildPageObjects(isPartner = false, parentSelfEmployedIn12Months = Some(false))
-          
+
           setupMocks(modelToFetch = Some(model), modelToStore = Some(model), storePageObjects = true)
 
           val result = await(
@@ -399,5 +347,57 @@ class SelfEmployedControllerSpec extends ControllersValidator with BeforeAndAfte
       }
     }
 
+  }
+
+  validateUrl(selfEmployedParentPath)
+  validateUrl(selfEmployedPartnerPath)
+
+  def buildPageObjects(isPartner: Boolean,
+                       parentEarnMoreThanNMW: Option[Boolean] = None,
+                       partnerEarnMoreThanNMW: Option[Boolean] = None,
+                       parentSelfEmployedIn12Months: Option[Boolean] = None,
+                       partnerSelfEmployedIn12Months: Option[Boolean] = None,
+                       whichOfYouInPaidEmployment: Option[YouPartnerBothEnum] = None
+                        ): PageObjects = {
+    val parent = Claimant(minimumEarnings = Some(MinimumEarnings(earnMoreThanNMW = parentEarnMoreThanNMW,
+      selfEmployedIn12Months = parentSelfEmployedIn12Months)))
+    val partner = Claimant(minimumEarnings = Some(MinimumEarnings(earnMoreThanNMW = partnerEarnMoreThanNMW,
+      selfEmployedIn12Months = partnerSelfEmployedIn12Months)))
+    if (isPartner) {
+      PageObjects(whichOfYouInPaidEmployment = whichOfYouInPaidEmployment, household = Household(location = LocationEnum.ENGLAND, parent = parent,
+        partner = Some(partner)))
+    } else {
+      PageObjects(whichOfYouInPaidEmployment = whichOfYouInPaidEmployment, household = Household(location = LocationEnum.ENGLAND, parent = parent))
+    }
+  }
+
+  private def setupMocks(modelToFetch: Option[PageObjects] = None,
+                         modelToStore: Option[PageObjects] = None,
+                         fetchPageObjects: Boolean = true,
+                         storePageObjects: Boolean = false) = {
+    if (fetchPageObjects) {
+      when(
+        selfEmployedController.keystore.fetch[PageObjects]()(any[HeaderCarrier], any[Reads[PageObjects]])
+      ).thenReturn(
+          Future.successful(modelToFetch)
+        )
+    }
+
+    if (storePageObjects) {
+      when(
+        selfEmployedController.keystore.cache[PageObjects](any[PageObjects])(any[HeaderCarrier], any[Format[PageObjects]])
+      ).thenReturn(
+          Future.successful(modelToStore)
+        )
+
+    }
+  }
+
+  private def setupMocksForException() = {
+    when(
+      selfEmployedController.keystore.fetch[PageObjects]()(any[HeaderCarrier], any[Reads[PageObjects]])
+    ).thenReturn(
+        Future.failed(new RuntimeException)
+      )
   }
 }
