@@ -32,31 +32,6 @@ class HoursController @Inject()(val messagesApi: MessagesApi) extends I18nSuppor
 
   val keystore: KeystoreService = KeystoreService
 
-  private def isDataValid(pageObjects: PageObjects, isPartner: Boolean): Boolean = {
-    pageObjects.livingWithPartner.isDefined && (
-      !pageObjects.livingWithPartner.get || (
-        pageObjects.livingWithPartner.get && pageObjects.whichOfYouInPaidEmployment.isDefined
-      )
-    ) && (
-      !isPartner ||
-        (isPartner && pageObjects.household.partner.isDefined)
-    )
-  }
-
-  private def getBackUrl(pageObjects: PageObjects, isPartner: Boolean): Call = {
-    if(pageObjects.livingWithPartner.get) {
-      if(!isPartner && pageObjects.whichOfYouInPaidEmployment.get == YouPartnerBothEnum.BOTH) {
-        routes.HoursController.onPageLoad(isPartner = !isPartner)
-      }
-      else {
-        routes.WhichOfYouInPaidEmploymentController.onPageLoad()
-      }
-    }
-    else {
-      routes.PaidEmploymentController.onPageLoad()
-    }
-  }
-
   def onPageLoad(isPartner: Boolean): Action[AnyContent] = withSession { implicit request =>
     keystore.fetch[PageObjects]().map {
       case Some(pageObjects) if isDataValid(pageObjects, isPartner) =>
@@ -80,39 +55,6 @@ class HoursController @Inject()(val messagesApi: MessagesApi) extends I18nSuppor
       case ex: Exception =>
         Logger.warn(s"Exception from HoursController.onPageLoad: ${ex.getMessage}")
         Redirect(routes.ChildCareBaseController.onTechnicalDifficulties())
-    }
-  }
-
-  private def modifyPageObjects(pageObjects: PageObjects, isPartner: Boolean, newHours: Option[BigDecimal]): PageObjects = {
-    if (!isPartner) {
-      pageObjects.copy(
-        household = pageObjects.household.copy(
-          parent = pageObjects.household.parent.copy(
-            hours = newHours
-          )
-        )
-      )
-    }
-    else {
-      pageObjects.copy(
-        household = pageObjects.household.copy(
-          partner = Some(
-            pageObjects.household.partner.get.copy(
-              hours = newHours
-            )
-          )
-        )
-      )
-    }
-  }
-
-
-  private def getNextPage(pageObjects: PageObjects, isPartner: Boolean): Call = {
-    if(isPartner && pageObjects.whichOfYouInPaidEmployment.get == YouPartnerBothEnum.BOTH) {
-      routes.HoursController.onPageLoad(isPartner = !isPartner)
-    }
-    else {
-      routes.VouchersController.onPageLoad()
     }
   }
 
@@ -145,6 +87,63 @@ class HoursController @Inject()(val messagesApi: MessagesApi) extends I18nSuppor
       case ex: Exception =>
         Logger.warn(s"Exception from HoursController.onSubmit: ${ex.getMessage}")
         Redirect(routes.ChildCareBaseController.onTechnicalDifficulties())
+    }
+  }
+
+  private def isDataValid(pageObjects: PageObjects, isPartner: Boolean): Boolean = {
+    pageObjects.livingWithPartner.isDefined && (
+      !pageObjects.livingWithPartner.get || (
+        pageObjects.livingWithPartner.get && pageObjects.whichOfYouInPaidEmployment.isDefined
+        )
+      ) && (
+      !isPartner ||
+        (isPartner && pageObjects.household.partner.isDefined)
+      )
+  }
+
+  private def getBackUrl(pageObjects: PageObjects, isPartner: Boolean): Call = {
+    if(pageObjects.livingWithPartner.get) {
+      if(!isPartner && pageObjects.whichOfYouInPaidEmployment.get == YouPartnerBothEnum.BOTH) {
+        routes.HoursController.onPageLoad(isPartner = !isPartner)
+      }
+      else {
+        routes.WhichOfYouInPaidEmploymentController.onPageLoad()
+      }
+    }
+    else {
+      routes.PaidEmploymentController.onPageLoad()
+    }
+  }
+
+  private def modifyPageObjects(pageObjects: PageObjects, isPartner: Boolean, newHours: Option[BigDecimal]): PageObjects = {
+    if (!isPartner) {
+      pageObjects.copy(
+        household = pageObjects.household.copy(
+          parent = pageObjects.household.parent.copy(
+            hours = newHours
+          )
+        )
+      )
+    }
+    else {
+      pageObjects.copy(
+        household = pageObjects.household.copy(
+          partner = Some(
+            pageObjects.household.partner.get.copy(
+              hours = newHours
+            )
+          )
+        )
+      )
+    }
+  }
+
+  private def getNextPage(pageObjects: PageObjects, isPartner: Boolean): Call = {
+    if(isPartner && pageObjects.whichOfYouInPaidEmployment.get == YouPartnerBothEnum.BOTH) {
+      routes.HoursController.onPageLoad(isPartner = !isPartner)
+    }
+    else {
+      routes.VouchersController.onPageLoad()
     }
   }
 

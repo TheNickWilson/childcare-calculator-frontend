@@ -34,20 +34,6 @@ class VouchersController @Inject()(val messagesApi: MessagesApi) extends I18nSup
 
   val keystore: KeystoreService = KeystoreService
 
-  private def getBackUrl(inPaidEmployment: YouPartnerBothEnum): Call = {
-    routes.HoursController.onPageLoad(isPartner = (inPaidEmployment == YouPartnerBothEnum.PARTNER))
-  }
-
-  private def defineInPaidEmployment(pageObjects: PageObjects): YouPartnerBothEnum = {
-    pageObjects.whichOfYouInPaidEmployment.getOrElse(YouPartnerBothEnum.YOU)
-  }
-
-  private def validatePageObjects(pageObjects: PageObjects): Boolean = {
-    pageObjects.paidOrSelfEmployed.getOrElse(false) && (
-      defineInPaidEmployment(pageObjects) == YouPartnerBothEnum.YOU || pageObjects.household.partner.isDefined
-    )
-  }
-
   def onPageLoad: Action[AnyContent] =  withSession { implicit request =>
     keystore.fetch[PageObjects]().map {
       case Some(pageObjects) if validatePageObjects(pageObjects) =>
@@ -69,12 +55,54 @@ class VouchersController @Inject()(val messagesApi: MessagesApi) extends I18nSup
     }
   }
 
-  private def getNextPage(inPaidEmployment: YouPartnerBothEnum, selectedVouchers: YesNoUnsureEnum): Call = {
-    if(inPaidEmployment == YouPartnerBothEnum.BOTH && selectedVouchers == YesNoUnsureEnum.YES) {
-      routes.WhoGetsVouchersController.onPageLoad()
-    } else {
-      routes.GetBenefitsController.onPageLoad()
+  def onSubmit: Action[AnyContent] = withSession { implicit request =>
+    keystore.fetch[PageObjects]().flatMap {
+      case Some(pageObjects) if validatePageObjects(pageObjects) =>
+        val inPaidEmployment: YouPartnerBothEnum = defineInPaidEmployment(pageObjects)
+        new VouchersForm(inPaidEmployment, messagesApi).form.bindFromRequest().fold(
+          errors =>
+            Future(
+              BadRequest(
+                vouchers(
+                  errors,
+                  inPaidEmployment,
+                  getBackUrl(inPaidEmployment)
+                )
+              )
+            ),
+          success => {
+            val selectedVouchers: YesNoUnsureEnum = YesNoUnsureEnum.withName(success.get)
+            val modifiedPageObjects = modifyPageObject(pageObjects, selectedVouchers)
+            keystore.cache(modifiedPageObjects).map {
+              result =>
+                Redirect(
+                  getNextPage(inPaidEmployment, selectedVouchers)
+                )
+            }
+          }
+        )
+      case _ =>
+        Logger.warn("PageObjects is invalid in VouchersController.onSubmit")
+        Future(Redirect(routes.ChildCareBaseController.onTechnicalDifficulties()))
+    } recover {
+      case ex: Exception =>
+        Logger.warn(s"Exception from VouchersController.onSubmit: ${ex.getMessage}")
+        Redirect(routes.ChildCareBaseController.onTechnicalDifficulties())
     }
+  }
+
+  private def defineInPaidEmployment(pageObjects: PageObjects): YouPartnerBothEnum = {
+    pageObjects.whichOfYouInPaidEmployment.getOrElse(YouPartnerBothEnum.YOU)
+  }
+
+  private def validatePageObjects(pageObjects: PageObjects): Boolean = {
+    pageObjects.paidOrSelfEmployed.getOrElse(false) && (
+      defineInPaidEmployment(pageObjects) == YouPartnerBothEnum.YOU || pageObjects.household.partner.isDefined
+      )
+  }
+
+  private def getBackUrl(inPaidEmployment: YouPartnerBothEnum): Call = {
+    routes.HoursController.onPageLoad(isPartner = (inPaidEmployment == YouPartnerBothEnum.PARTNER))
   }
 
   private def modifyPageObject(pageObjects: PageObjects, selectedVouchers: YesNoUnsureEnum): PageObjects = {
@@ -121,39 +149,11 @@ class VouchersController @Inject()(val messagesApi: MessagesApi) extends I18nSup
     }
   }
 
-  def onSubmit: Action[AnyContent] = withSession { implicit request =>
-    keystore.fetch[PageObjects]().flatMap {
-      case Some(pageObjects) if validatePageObjects(pageObjects) =>
-        val inPaidEmployment: YouPartnerBothEnum = defineInPaidEmployment(pageObjects)
-        new VouchersForm(inPaidEmployment, messagesApi).form.bindFromRequest().fold(
-          errors =>
-            Future(
-              BadRequest(
-                vouchers(
-                  errors,
-                  inPaidEmployment,
-                  getBackUrl(inPaidEmployment)
-                )
-              )
-            ),
-          success => {
-            val selectedVouchers: YesNoUnsureEnum = YesNoUnsureEnum.withName(success.get)
-            val modifiedPageObjects = modifyPageObject(pageObjects, selectedVouchers)
-            keystore.cache(modifiedPageObjects).map {
-              result =>
-                Redirect(
-                  getNextPage(inPaidEmployment, selectedVouchers)
-                )
-            }
-          }
-        )
-      case _ =>
-        Logger.warn("PageObjects is invalid in VouchersController.onSubmit")
-        Future(Redirect(routes.ChildCareBaseController.onTechnicalDifficulties()))
-    } recover {
-      case ex: Exception =>
-        Logger.warn(s"Exception from VouchersController.onSubmit: ${ex.getMessage}")
-        Redirect(routes.ChildCareBaseController.onTechnicalDifficulties())
+  private def getNextPage(inPaidEmployment: YouPartnerBothEnum, selectedVouchers: YesNoUnsureEnum): Call = {
+    if(inPaidEmployment == YouPartnerBothEnum.BOTH && selectedVouchers == YesNoUnsureEnum.YES) {
+      routes.WhoGetsVouchersController.onPageLoad()
+    } else {
+      routes.GetBenefitsController.onPageLoad()
     }
   }
 

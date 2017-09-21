@@ -33,14 +33,6 @@ class LivingWithPartnerController @Inject()(val messagesApi: MessagesApi) extend
 
   val keystore: KeystoreService = KeystoreService
 
-  private def getBackUrl(hasChildAgedThreeOrFour: Option[Boolean]): Call = {
-    if (hasChildAgedThreeOrFour.getOrElse(false)) {
-      routes.FreeHoursInfoController.onPageLoad()
-    } else {
-      routes.ExpectChildcareCostsController.onPageLoad(false)
-    }
-  }
-
   def onPageLoad: Action[AnyContent] = withSession { implicit request =>
     keystore.fetch[PageObjects]().map {
       case Some(pageObjects) =>
@@ -56,6 +48,44 @@ class LivingWithPartnerController @Inject()(val messagesApi: MessagesApi) extend
       case ex: Exception =>
         Logger.warn(s"Exception from LivingWithPartnerController.onPageLoad: ${ex.getMessage}")
         Redirect(routes.ChildCareBaseController.onTechnicalDifficulties())
+    }
+  }
+
+  def onSubmit: Action[AnyContent] = withSession { implicit request =>
+    keystore.fetch[PageObjects]().flatMap {
+      case Some(pageObjects) =>
+        new LivingWithPartnerForm(messagesApi).form.bindFromRequest().fold(
+          errors =>
+            Future(
+              BadRequest(
+                livingWithPartner(
+                  errors,
+                  getBackUrl(pageObjects.childAgedThreeOrFour)
+                )
+              )
+            ),
+          success => {
+            val modifiedPageObjects = modifyPageObject(pageObjects, success.get)
+            keystore.cache(modifiedPageObjects).map { result =>
+              Redirect(routes.PaidEmploymentController.onPageLoad())
+            }
+          }
+        )
+      case _ =>
+        Logger.warn("PageObjects object is missing in LivingWithPartnerController.onSubmit")
+        Future(Redirect(routes.ChildCareBaseController.onTechnicalDifficulties()))
+    } recover {
+      case ex: Exception =>
+        Logger.warn(s"Exception from LivingWithPartnerController.onSubmit: ${ex.getMessage}")
+        Redirect(routes.ChildCareBaseController.onTechnicalDifficulties())
+    }
+  }
+
+  private def getBackUrl(hasChildAgedThreeOrFour: Option[Boolean]): Call = {
+    if (hasChildAgedThreeOrFour.getOrElse(false)) {
+      routes.FreeHoursInfoController.onPageLoad()
+    } else {
+      routes.ExpectChildcareCostsController.onPageLoad(false)
     }
   }
 
@@ -92,33 +122,4 @@ class LivingWithPartnerController @Inject()(val messagesApi: MessagesApi) extend
     }
   }
 
-  def onSubmit: Action[AnyContent] = withSession { implicit request =>
-    keystore.fetch[PageObjects]().flatMap {
-      case Some(pageObjects) =>
-        new LivingWithPartnerForm(messagesApi).form.bindFromRequest().fold(
-          errors =>
-            Future(
-              BadRequest(
-                livingWithPartner(
-                  errors,
-                  getBackUrl(pageObjects.childAgedThreeOrFour)
-                )
-              )
-            ),
-          success => {
-            val modifiedPageObjects = modifyPageObject(pageObjects, success.get)
-            keystore.cache(modifiedPageObjects).map { result =>
-              Redirect(routes.PaidEmploymentController.onPageLoad())
-            }
-          }
-        )
-      case _ =>
-        Logger.warn("PageObjects object is missing in LivingWithPartnerController.onSubmit")
-        Future(Redirect(routes.ChildCareBaseController.onTechnicalDifficulties()))
-    } recover {
-      case ex: Exception =>
-        Logger.warn(s"Exception from LivingWithPartnerController.onSubmit: ${ex.getMessage}")
-        Redirect(routes.ChildCareBaseController.onTechnicalDifficulties())
-    }
-  }
 }

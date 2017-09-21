@@ -35,32 +35,6 @@ class SelfEmployedController @Inject()(val messagesApi: MessagesApi) extends I18
 
   val keystore: KeystoreService = KeystoreService
 
-  private def getBackUrl(isPartner: Boolean, isSelfEmployed: Boolean): Call = {
-    if (isPartner) { //Is employmentStatus == Self-Employed for partner
-      routes.SelfEmployedOrApprenticeController.onPageLoad(true)
-    } else {//Is employmentStatus == Self-Employed for parent
-      routes.SelfEmployedOrApprenticeController.onPageLoad(false)
-    }
-  }
-
-  private def defineSelfEmployed(isPartner: Boolean, pageObjects: PageObjects): Option[Boolean] = {
-    if(isPartner) {
-      if(pageObjects.household.partner.isDefined && pageObjects.household.partner.get.minimumEarnings.isDefined &&
-        pageObjects.household.partner.get.minimumEarnings.get.selfEmployedIn12Months.isDefined ) {
-        pageObjects.household.partner.get.minimumEarnings.get.selfEmployedIn12Months
-      } else {
-        None
-      }
-    } else {
-      if(pageObjects.household.parent.minimumEarnings.isDefined &&
-        pageObjects.household.parent.minimumEarnings.get.selfEmployedIn12Months.isDefined) {
-        pageObjects.household.parent.minimumEarnings.get.selfEmployedIn12Months
-      } else {
-        None
-      }
-    }
-  }
-
   def onPageLoad(isPartner: Boolean): Action[AnyContent] = withSession { implicit request =>
     keystore.fetch[PageObjects]().map {
       case Some(pageObjects) =>
@@ -108,6 +82,54 @@ class SelfEmployedController @Inject()(val messagesApi: MessagesApi) extends I18
     }
   }
 
+  private def defineSelfEmployed(isPartner: Boolean, pageObjects: PageObjects): Option[Boolean] = {
+    if(isPartner) {
+      if(pageObjects.household.partner.isDefined && pageObjects.household.partner.get.minimumEarnings.isDefined &&
+        pageObjects.household.partner.get.minimumEarnings.get.selfEmployedIn12Months.isDefined ) {
+        pageObjects.household.partner.get.minimumEarnings.get.selfEmployedIn12Months
+      } else {
+        None
+      }
+    } else {
+      if(pageObjects.household.parent.minimumEarnings.isDefined &&
+        pageObjects.household.parent.minimumEarnings.get.selfEmployedIn12Months.isDefined) {
+        pageObjects.household.parent.minimumEarnings.get.selfEmployedIn12Months
+      } else {
+        None
+      }
+    }
+  }
+
+  private def getBackUrl(isPartner: Boolean, isSelfEmployed: Boolean): Call = {
+    if (isPartner) { //Is employmentStatus == Self-Employed for partner
+      routes.SelfEmployedOrApprenticeController.onPageLoad(true)
+    } else {//Is employmentStatus == Self-Employed for parent
+      routes.SelfEmployedOrApprenticeController.onPageLoad(false)
+    }
+  }
+
+  private def getModifiedPageObjects(selfEmployed: Boolean, pageObjects: PageObjects, isPartner: Boolean): PageObjects = {
+    if(isPartner) {
+      pageObjects.copy(household = pageObjects.household.copy(
+        partner = Some(pageObjects.household.partner.fold(Claimant())(x => x.copy(
+          minimumEarnings = Some(x.minimumEarnings.fold(
+            MinimumEarnings(selfEmployedIn12Months = Some(selfEmployed)))(_.copy(
+            selfEmployedIn12Months = Some(selfEmployed))))
+        ))
+        )
+      ))
+    } else {
+      pageObjects.copy(household = pageObjects.household.copy(
+        parent = pageObjects.household.parent.copy(
+          minimumEarnings = Some(pageObjects.household.parent.minimumEarnings.fold(
+            MinimumEarnings(selfEmployedIn12Months = Some(selfEmployed)))(_.copy(
+            selfEmployedIn12Months = Some(selfEmployed)))
+          ))
+      ))
+    }
+
+  }
+
   private def getNextPage(pageObjects: PageObjects, isPartner: Boolean): Call = {
     val inPaidEmployment: YouPartnerBothEnum = defineInPaidEmployment(pageObjects)
     val earnMoreThanNMW = defineMinimumEarnings(isPartner, pageObjects).getOrElse(false)
@@ -140,28 +162,6 @@ class SelfEmployedController @Inject()(val messagesApi: MessagesApi) extends I18
           routes.CreditsController.onPageLoad()
         }
       }
-    }
-
-  }
-
-  private def getModifiedPageObjects(selfEmployed: Boolean, pageObjects: PageObjects, isPartner: Boolean): PageObjects = {
-    if(isPartner) {
-      pageObjects.copy(household = pageObjects.household.copy(
-        partner = Some(pageObjects.household.partner.fold(Claimant())(x => x.copy(
-          minimumEarnings = Some(x.minimumEarnings.fold(
-            MinimumEarnings(selfEmployedIn12Months = Some(selfEmployed)))(_.copy(
-            selfEmployedIn12Months = Some(selfEmployed))))
-        ))
-        )
-      ))
-    } else {
-      pageObjects.copy(household = pageObjects.household.copy(
-        parent = pageObjects.household.parent.copy(
-          minimumEarnings = Some(pageObjects.household.parent.minimumEarnings.fold(
-            MinimumEarnings(selfEmployedIn12Months = Some(selfEmployed)))(_.copy(
-            selfEmployedIn12Months = Some(selfEmployed)))
-          ))
-      ))
     }
 
   }

@@ -35,14 +35,6 @@ class ChildAgedTwoController @Inject()(val messagesApi: MessagesApi) extends I18
 
   val keystore: KeystoreService = KeystoreService
 
-  private def getBackUrl(summary: Boolean)(implicit hc: HeaderCarrier): Call = {
-    if(summary) {
-      routes.FreeHoursResultsController.onPageLoad()
-    } else {
-      routes.LocationController.onPageLoad()
-    }
-  }
-
   def onPageLoad(summary: Boolean): Action[AnyContent] = withSession { implicit request =>
     keystore.fetch[PageObjects]().map {
       case Some(pageObjects) =>
@@ -92,6 +84,14 @@ class ChildAgedTwoController @Inject()(val messagesApi: MessagesApi) extends I18
       case ex: Exception =>
         Logger.warn(s"Exception from ChildAgedTwoController.onSubmit: ${ex.getMessage}")
         Redirect(routes.ChildCareBaseController.onTechnicalDifficulties())
+    }
+  }
+
+  private def getBackUrl(summary: Boolean)(implicit hc: HeaderCarrier): Call = {
+    if(summary) {
+      routes.FreeHoursResultsController.onPageLoad()
+    } else {
+      routes.LocationController.onPageLoad()
     }
   }
 }

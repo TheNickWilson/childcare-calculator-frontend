@@ -33,19 +33,6 @@ class WhoGetsBenefitsController @Inject()(val messagesApi: MessagesApi) extends 
 
   val keystore: KeystoreService = KeystoreService
 
-  private def validatePageObjects(pageObject: PageObjects): Boolean = {
-    pageObject.household.partner.isDefined
-  }
-
-  private def getSelection(parentBenefits: Option[Benefits], partnerBenefits: Option[Benefits]): Option[YouPartnerBothEnum] = {
-    (parentBenefits, partnerBenefits) match {
-      case (None, None) => None
-      case (Some(_), None) => Some(YouPartnerBothEnum.YOU)
-      case (None, Some(_)) => Some(YouPartnerBothEnum.PARTNER)
-      case (Some(_), Some(_)) => Some(YouPartnerBothEnum.BOTH)
-    }
-  }
-
   def onPageLoad: Action[AnyContent] = withSession { implicit request =>
     keystore.fetch[PageObjects]().map {
       case Some(pageObject) if validatePageObjects(pageObject) =>
@@ -60,6 +47,48 @@ class WhoGetsBenefitsController @Inject()(val messagesApi: MessagesApi) extends 
       case ex: Exception =>
         Logger.warn(s"Exception from WhoGetsBenefitsController.onPageLoad: ${ex.getMessage}")
         Redirect(routes.ChildCareBaseController.onTechnicalDifficulties())
+    }
+  }
+
+  def onSubmit: Action[AnyContent] = withSession { implicit request =>
+    new WhoGetsBenefitsForm(messagesApi).form.bindFromRequest().fold(
+      errors => {
+        Future(
+          BadRequest(
+            whoGetsBenefits(errors)
+          )
+        )
+      },
+      success => {
+        keystore.fetch[PageObjects]().flatMap {
+          case Some(pageObject) if validatePageObjects(pageObject) =>
+            val selectedWhoGetsBenefits: YouPartnerBothEnum = YouPartnerBothEnum.withName(success.get)
+            val modifiedPageObject: PageObjects = modifyPageObject(pageObject, selectedWhoGetsBenefits)
+            keystore.cache(modifiedPageObject).map { result =>
+              Redirect(getNextPage(selectedWhoGetsBenefits))
+            }
+          case _ =>
+            Logger.warn("Invalid PageObjects in WhoGetsBenefitsController.onSubmit")
+            Future(Redirect(routes.ChildCareBaseController.onTechnicalDifficulties()))
+        }.recover {
+          case ex: Exception =>
+            Logger.warn(s"Exception from WhoGetsBenefitsController.onSubmit: ${ex.getMessage}")
+            Redirect(routes.ChildCareBaseController.onTechnicalDifficulties())
+        }
+      }
+    )
+  }
+
+  private def validatePageObjects(pageObject: PageObjects): Boolean = {
+    pageObject.household.partner.isDefined
+  }
+
+  private def getSelection(parentBenefits: Option[Benefits], partnerBenefits: Option[Benefits]): Option[YouPartnerBothEnum] = {
+    (parentBenefits, partnerBenefits) match {
+      case (None, None) => None
+      case (Some(_), None) => Some(YouPartnerBothEnum.YOU)
+      case (None, Some(_)) => Some(YouPartnerBothEnum.PARTNER)
+      case (Some(_), Some(_)) => Some(YouPartnerBothEnum.BOTH)
     }
   }
 
@@ -111,35 +140,6 @@ class WhoGetsBenefitsController @Inject()(val messagesApi: MessagesApi) extends 
 
   private def getNextPage(selectedWhoGetsBenefits: YouPartnerBothEnum): Call = {
     routes.WhichBenefitsDoYouGetController.onPageLoad(selectedWhoGetsBenefits == YouPartnerBothEnum.PARTNER)
-  }
-
-  def onSubmit: Action[AnyContent] = withSession { implicit request =>
-    new WhoGetsBenefitsForm(messagesApi).form.bindFromRequest().fold(
-      errors => {
-        Future(
-          BadRequest(
-            whoGetsBenefits(errors)
-          )
-        )
-      },
-      success => {
-        keystore.fetch[PageObjects]().flatMap {
-          case Some(pageObject) if validatePageObjects(pageObject) =>
-            val selectedWhoGetsBenefits: YouPartnerBothEnum = YouPartnerBothEnum.withName(success.get)
-            val modifiedPageObject: PageObjects = modifyPageObject(pageObject, selectedWhoGetsBenefits)
-            keystore.cache(modifiedPageObject).map { result =>
-              Redirect(getNextPage(selectedWhoGetsBenefits))
-            }
-          case _ =>
-            Logger.warn("Invalid PageObjects in WhoGetsBenefitsController.onSubmit")
-            Future(Redirect(routes.ChildCareBaseController.onTechnicalDifficulties()))
-        }.recover {
-          case ex: Exception =>
-            Logger.warn(s"Exception from WhoGetsBenefitsController.onSubmit: ${ex.getMessage}")
-            Redirect(routes.ChildCareBaseController.onTechnicalDifficulties())
-        }
-      }
-    )
   }
 
 }

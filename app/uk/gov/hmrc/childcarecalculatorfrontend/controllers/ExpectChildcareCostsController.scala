@@ -34,15 +34,6 @@ class ExpectChildcareCostsController @Inject()(val messagesApi: MessagesApi) ext
 
   val keystore: KeystoreService = KeystoreService
 
-
-  private def getBackUrl(summary: Boolean): Call = {
-    if(summary) {
-      routes.FreeHoursResultsController.onPageLoad()
-    } else {
-      routes.ChildAgedThreeOrFourController.onPageLoad(false)
-    }
-  }
-
   def onPageLoad(summary: Boolean = false): Action[AnyContent] = withSession { implicit request =>
     keystore.fetch[PageObjects]().map {
       case Some(pageObjects) =>
@@ -60,49 +51,6 @@ class ExpectChildcareCostsController @Inject()(val messagesApi: MessagesApi) ext
       case ex: Exception =>
         Logger.warn(s"Exception from ExpectChildcareCostsController.onPageLoad: ${ex.getMessage}")
         Redirect(routes.ChildCareBaseController.onTechnicalDifficulties())
-    }
-  }
-
-  private def getNextPage(modifiedPageObjects: PageObjects): Call = {
-      val location: LocationEnum = modifiedPageObjects.household.location
-      val hasChildAgedTwo: Boolean = modifiedPageObjects.childAgedTwo.getOrElse(false)
-      val hasChildAgedThreeOrFour: Boolean = modifiedPageObjects.childAgedThreeOrFour.getOrElse(false)
-      val hasExpectedChildcareCost: Boolean = modifiedPageObjects.expectChildcareCosts.getOrElse(false)
-      if(
-        hasChildAgedThreeOrFour &&
-        (hasExpectedChildcareCost || location.equals(LocationEnum.ENGLAND) || hasChildAgedTwo)
-      ) {
-        routes.FreeHoursInfoController.onPageLoad()
-      } else if(hasChildAgedTwo || hasExpectedChildcareCost) {
-        routes.LivingWithPartnerController.onPageLoad()
-      } else {
-        routes.FreeHoursResultsController.onPageLoad()
-      }
-  }
-
-  private def modifyPageObject(oldPageObject: PageObjects, newExpectedCosts: Boolean): PageObjects = {
-    if(oldPageObject.expectChildcareCosts == Some(newExpectedCosts)) {
-      oldPageObject
-    }
-    else {
-      val modified = oldPageObject.copy(
-        expectChildcareCosts = Some(newExpectedCosts)
-      )
-      if(newExpectedCosts) {
-        modified
-      }
-      else {
-        modified.copy(
-          livingWithPartner = None,
-          paidOrSelfEmployed = None,
-          whichOfYouInPaidEmployment = None,
-          getVouchers = None,
-          household = oldPageObject.household.copy(
-            parent = Claimant(),
-            partner = None
-          )
-        )
-      }
     }
   }
 
@@ -136,6 +84,57 @@ class ExpectChildcareCostsController @Inject()(val messagesApi: MessagesApi) ext
         Redirect(routes.ChildCareBaseController.onTechnicalDifficulties())
     }
 
+  }
+
+  private def getBackUrl(summary: Boolean): Call = {
+    if(summary) {
+      routes.FreeHoursResultsController.onPageLoad()
+    } else {
+      routes.ChildAgedThreeOrFourController.onPageLoad(false)
+    }
+  }
+
+  private def modifyPageObject(oldPageObject: PageObjects, newExpectedCosts: Boolean): PageObjects = {
+    if(oldPageObject.expectChildcareCosts == Some(newExpectedCosts)) {
+      oldPageObject
+    }
+    else {
+      val modified = oldPageObject.copy(
+        expectChildcareCosts = Some(newExpectedCosts)
+      )
+      if(newExpectedCosts) {
+        modified
+      }
+      else {
+        modified.copy(
+          livingWithPartner = None,
+          paidOrSelfEmployed = None,
+          whichOfYouInPaidEmployment = None,
+          getVouchers = None,
+          household = oldPageObject.household.copy(
+            parent = Claimant(),
+            partner = None
+          )
+        )
+      }
+    }
+  }
+
+  private def getNextPage(modifiedPageObjects: PageObjects): Call = {
+    val location: LocationEnum = modifiedPageObjects.household.location
+    val hasChildAgedTwo: Boolean = modifiedPageObjects.childAgedTwo.getOrElse(false)
+    val hasChildAgedThreeOrFour: Boolean = modifiedPageObjects.childAgedThreeOrFour.getOrElse(false)
+    val hasExpectedChildcareCost: Boolean = modifiedPageObjects.expectChildcareCosts.getOrElse(false)
+    if(
+      hasChildAgedThreeOrFour &&
+        (hasExpectedChildcareCost || location.equals(LocationEnum.ENGLAND) || hasChildAgedTwo)
+    ) {
+      routes.FreeHoursInfoController.onPageLoad()
+    } else if(hasChildAgedTwo || hasExpectedChildcareCost) {
+      routes.LivingWithPartnerController.onPageLoad()
+    } else {
+      routes.FreeHoursResultsController.onPageLoad()
+    }
   }
 
 }

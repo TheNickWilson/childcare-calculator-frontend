@@ -47,6 +47,36 @@ class LocationController @Inject()(val messagesApi: MessagesApi) extends I18nSup
     }
   }
 
+  def onSubmit: Action[AnyContent] = withSession { implicit request =>
+    new LocationForm(messagesApi).form.bindFromRequest().fold(
+      errors => {
+        Future(BadRequest(location(errors)))
+      },
+      success => {
+        val selectedLocation = success.get
+        keystore.fetch[PageObjects]().flatMap { pageObjects =>
+          saveAndGoToNextPage(pageObjects, selectedLocation)
+        } recover {
+          case ex: Exception =>
+            Logger.warn(s"Exception from LocationController.onSubmit: ${ex.getMessage}")
+            Redirect(routes.ChildCareBaseController.onTechnicalDifficulties())
+        }
+      }
+    )
+  }
+
+  private def saveAndGoToNextPage(pageObjects: Option[PageObjects], selectedLocation: String)(implicit hc: HeaderCarrier): Future[Result] = {
+    val modifiedPageObjects: PageObjects = getModifiedPageObjects(pageObjects, selectedLocation)
+
+    keystore.cache(modifiedPageObjects).map { res =>
+      if (selectedLocation == LocationEnum.NORTHERNIRELAND.toString) {
+        Redirect(routes.ChildAgedThreeOrFourController.onPageLoad(false))
+      } else {
+        Redirect(routes.ChildAgedTwoController.onPageLoad(false))
+      }
+    }
+  }
+
   private def getModifiedPageObjects(pageObjects: Option[PageObjects], selectedLocation: String): PageObjects = {
     pageObjects match {
       case Some(po) =>
@@ -67,36 +97,6 @@ class LocationController @Inject()(val messagesApi: MessagesApi) extends I18nSup
           )
         )
     }
-  }
-
-  private def saveAndGoToNextPage(pageObjects: Option[PageObjects], selectedLocation: String)(implicit hc: HeaderCarrier): Future[Result] = {
-    val modifiedPageObjects: PageObjects = getModifiedPageObjects(pageObjects, selectedLocation)
-
-    keystore.cache(modifiedPageObjects).map { res =>
-      if (selectedLocation == LocationEnum.NORTHERNIRELAND.toString) {
-        Redirect(routes.ChildAgedThreeOrFourController.onPageLoad(false))
-      } else {
-        Redirect(routes.ChildAgedTwoController.onPageLoad(false))
-      }
-    }
-  }
-
-  def onSubmit: Action[AnyContent] = withSession { implicit request =>
-    new LocationForm(messagesApi).form.bindFromRequest().fold(
-      errors => {
-        Future(BadRequest(location(errors)))
-      },
-      success => {
-        val selectedLocation = success.get
-        keystore.fetch[PageObjects]().flatMap { pageObjects =>
-          saveAndGoToNextPage(pageObjects, selectedLocation)
-        } recover {
-          case ex: Exception =>
-            Logger.warn(s"Exception from LocationController.onSubmit: ${ex.getMessage}")
-            Redirect(routes.ChildCareBaseController.onTechnicalDifficulties())
-        }
-      }
-    )
   }
 
 }

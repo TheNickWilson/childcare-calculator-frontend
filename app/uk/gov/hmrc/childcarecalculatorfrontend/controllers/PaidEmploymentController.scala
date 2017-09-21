@@ -57,6 +57,36 @@ class PaidEmploymentController @Inject()(val messagesApi: MessagesApi) extends I
     }
   }
 
+  def onSubmit: Action[AnyContent] = withSession { implicit request =>
+    keystore.fetch[PageObjects].flatMap {
+      case Some(pageObjects) if validatePageObjects(pageObjects) =>
+        val hasPartner = pageObjects.livingWithPartner.get
+        new PaidEmploymentForm(hasPartner, messagesApi).form.bindFromRequest().fold(
+          errors =>
+            Future(
+              BadRequest(
+                paidEmployment(
+                  errors, hasPartner
+                )
+              )
+            ),
+          success => {
+            val modifiedPageObjects = modifyPageObjects(pageObjects, success.get)
+            keystore.cache(modifiedPageObjects).map { result =>
+              Redirect(getNextPage(hasPartner, success.get))
+            }
+          }
+        )
+      case _ =>
+        Logger.warn("Invalid PageObjects in PaidEmploymentController.onSubmit")
+        Future(Redirect(routes.ChildCareBaseController.onTechnicalDifficulties()))
+    } recover {
+      case ex: Exception =>
+        Logger.warn(s"Exception from PaidEmploymentController.onSubmit: ${ex.getMessage}")
+        Redirect(routes.ChildCareBaseController.onTechnicalDifficulties())
+    }
+  }
+
   private def modifyPageObjects(oldPageObjects: PageObjects, newPaidOrSelfEmployed: Boolean): PageObjects = {
     if(oldPageObjects.paidOrSelfEmployed == Some(newPaidOrSelfEmployed)) {
       oldPageObjects
@@ -87,33 +117,4 @@ class PaidEmploymentController @Inject()(val messagesApi: MessagesApi) extends I
     }
   }
 
-  def onSubmit: Action[AnyContent] = withSession { implicit request =>
-    keystore.fetch[PageObjects].flatMap {
-      case Some(pageObjects) if validatePageObjects(pageObjects) =>
-        val hasPartner = pageObjects.livingWithPartner.get
-        new PaidEmploymentForm(hasPartner, messagesApi).form.bindFromRequest().fold(
-          errors =>
-            Future(
-              BadRequest(
-                paidEmployment(
-                  errors, hasPartner
-                )
-              )
-            ),
-          success => {
-            val modifiedPageObjects = modifyPageObjects(pageObjects, success.get)
-            keystore.cache(modifiedPageObjects).map { result =>
-              Redirect(getNextPage(hasPartner, success.get))
-            }
-          }
-        )
-      case _ =>
-        Logger.warn("Invalid PageObjects in PaidEmploymentController.onSubmit")
-        Future(Redirect(routes.ChildCareBaseController.onTechnicalDifficulties()))
-    } recover {
-      case ex: Exception =>
-        Logger.warn(s"Exception from PaidEmploymentController.onSubmit: ${ex.getMessage}")
-        Redirect(routes.ChildCareBaseController.onTechnicalDifficulties())
-    }
-  }
 }

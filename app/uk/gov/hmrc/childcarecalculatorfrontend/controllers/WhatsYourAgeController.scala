@@ -33,29 +33,6 @@ class WhatsYourAgeController @Inject()(val messagesApi: MessagesApi) extends I18
 
   val keystore: KeystoreService = KeystoreService
 
-  private def getBackUrl(pageObjects: PageObjects, isPartner: Boolean): Call = {
-    if(isPartner) {
-      if(pageObjects.getBenefits.contains(false) &&
-        pageObjects.whichOfYouInPaidEmployment.contains(YouPartnerBothEnum.PARTNER)) {
-        routes.GetBenefitsController.onPageLoad()
-      } else if (pageObjects.whichOfYouInPaidEmployment.contains(YouPartnerBothEnum.BOTH)) {
-        routes.WhatsYourAgeController.onPageLoad(false)
-      } else if (pageObjects.household.partner.isDefined && pageObjects.household.partner.get.benefits.isDefined) {
-        routes.WhichBenefitsDoYouGetController.onPageLoad(true)
-      } else {
-        routes.WhichBenefitsDoYouGetController.onPageLoad(false)
-      }
-    } else {
-      if(pageObjects.getBenefits.contains(false)) { //replaced pageObjects.getBenefits == Some(false)
-        routes.GetBenefitsController.onPageLoad()
-      } else if (pageObjects.household.partner.isDefined && pageObjects.household.partner.get.benefits.isDefined) {
-        routes.WhichBenefitsDoYouGetController.onPageLoad(true)
-      } else {
-        routes.WhichBenefitsDoYouGetController.onPageLoad(false)
-      }
-    }
-  }
-
   def onPageLoad(isPartner: Boolean): Action[AnyContent] = withSession { implicit request =>
     keystore.fetch[PageObjects]().map {
       case Some(pageObjects)  =>
@@ -126,6 +103,29 @@ class WhatsYourAgeController @Inject()(val messagesApi: MessagesApi) extends I18
     }
   }
 
+  private def getBackUrl(pageObjects: PageObjects, isPartner: Boolean): Call = {
+    if(isPartner) {
+      if(pageObjects.getBenefits.contains(false) &&
+        pageObjects.whichOfYouInPaidEmployment.contains(YouPartnerBothEnum.PARTNER)) {
+        routes.GetBenefitsController.onPageLoad()
+      } else if (pageObjects.whichOfYouInPaidEmployment.contains(YouPartnerBothEnum.BOTH)) {
+        routes.WhatsYourAgeController.onPageLoad(false)
+      } else if (pageObjects.household.partner.isDefined && pageObjects.household.partner.get.benefits.isDefined) {
+        routes.WhichBenefitsDoYouGetController.onPageLoad(true)
+      } else {
+        routes.WhichBenefitsDoYouGetController.onPageLoad(false)
+      }
+    } else {
+      if(pageObjects.getBenefits.contains(false)) { //replaced pageObjects.getBenefits == Some(false)
+        routes.GetBenefitsController.onPageLoad()
+      } else if (pageObjects.household.partner.isDefined && pageObjects.household.partner.get.benefits.isDefined) {
+        routes.WhichBenefitsDoYouGetController.onPageLoad(true)
+      } else {
+        routes.WhichBenefitsDoYouGetController.onPageLoad(false)
+      }
+    }
+  }
+
   private def getModifiedPageObjects(ageRange: AgeRangeEnum.Value, pageObjects: PageObjects, isPartner: Boolean): PageObjects = {
     if(isPartner) {
       pageObjects.copy(
@@ -140,6 +140,6 @@ class WhatsYourAgeController @Inject()(val messagesApi: MessagesApi) extends I18
         )
       )
     }
-
   }
+
 }

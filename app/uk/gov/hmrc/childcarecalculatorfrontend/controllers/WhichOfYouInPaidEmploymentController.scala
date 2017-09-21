@@ -32,10 +32,6 @@ class WhichOfYouInPaidEmploymentController @Inject()(val messagesApi: MessagesAp
 
   val keystore: KeystoreService = KeystoreService
 
-  private def validatePageObjects(pageObjects: PageObjects): Boolean = {
-    pageObjects.household.partner.isDefined
-  }
-
   def onPageLoad: Action[AnyContent] = withSession { implicit request =>
     keystore.fetch[PageObjects]().map {
       case Some(pageObjects) if validatePageObjects(pageObjects) =>
@@ -52,6 +48,42 @@ class WhichOfYouInPaidEmploymentController @Inject()(val messagesApi: MessagesAp
         Logger.warn(s"Exception from WhichOfYouInPaidEmploymentController.onPageLoad: ${ex.getMessage}")
         Redirect(routes.ChildCareBaseController.onTechnicalDifficulties())
     }
+  }
+
+  def onSubmit: Action[AnyContent] = withSession { implicit request =>
+    keystore.fetch[PageObjects]().flatMap {
+      case Some(pageObjects) if validatePageObjects(pageObjects) =>
+        new WhichOfYouPaidEmploymentForm(messagesApi).form.bindFromRequest().fold(
+          errors =>
+            Future(
+              BadRequest(
+                whichOfYouPaidOrSelfEmployed(errors)
+              )
+            ),
+          success => {
+            val modifiedPageObjects = modifyPageObject(pageObjects, success.get)
+            keystore.cache(modifiedPageObjects).map {
+              result =>
+                Redirect(
+                  routes.HoursController.onPageLoad(
+                    isPartner = (YouPartnerBothEnum.withName(success.get) != YouPartnerBothEnum.YOU)
+                  )
+                )
+            }
+          }
+        )
+      case _ =>
+        Logger.warn("Invalid PageObjects in WhichOfYouInPaidEmploymentController.onSubmit")
+        Future(Redirect(routes.ChildCareBaseController.onTechnicalDifficulties()))
+    } recover {
+      case ex: Exception =>
+        Logger.warn(s"Exception from WhichOfYouInPaidEmploymentController.onSubmit: ${ex.getMessage}")
+        Redirect(routes.ChildCareBaseController.onTechnicalDifficulties())
+    }
+  }
+
+  private def validatePageObjects(pageObjects: PageObjects): Boolean = {
+    pageObjects.household.partner.isDefined
   }
 
   private def modifyPageObject(oldPageObject: PageObjects, newWhichOfYouInPaidEmployment: String): PageObjects = {
@@ -100,38 +132,6 @@ class WhichOfYouInPaidEmploymentController @Inject()(val messagesApi: MessagesAp
         )
         case YouPartnerBothEnum.BOTH => modified
       }
-    }
-  }
-
-  def onSubmit: Action[AnyContent] = withSession { implicit request =>
-    keystore.fetch[PageObjects]().flatMap {
-      case Some(pageObjects) if validatePageObjects(pageObjects) =>
-        new WhichOfYouPaidEmploymentForm(messagesApi).form.bindFromRequest().fold(
-          errors =>
-            Future(
-              BadRequest(
-                whichOfYouPaidOrSelfEmployed(errors)
-              )
-            ),
-          success => {
-            val modifiedPageObjects = modifyPageObject(pageObjects, success.get)
-            keystore.cache(modifiedPageObjects).map {
-              result =>
-                Redirect(
-                  routes.HoursController.onPageLoad(
-                    isPartner = (YouPartnerBothEnum.withName(success.get) != YouPartnerBothEnum.YOU)
-                  )
-                )
-            }
-          }
-        )
-      case _ =>
-        Logger.warn("Invalid PageObjects in WhichOfYouInPaidEmploymentController.onSubmit")
-        Future(Redirect(routes.ChildCareBaseController.onTechnicalDifficulties()))
-    } recover {
-      case ex: Exception =>
-        Logger.warn(s"Exception from WhichOfYouInPaidEmploymentController.onSubmit: ${ex.getMessage}")
-        Redirect(routes.ChildCareBaseController.onTechnicalDifficulties())
     }
   }
 

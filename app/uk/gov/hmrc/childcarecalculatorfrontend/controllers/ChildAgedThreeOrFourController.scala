@@ -34,19 +34,6 @@ class ChildAgedThreeOrFourController @Inject()(val messagesApi: MessagesApi) ext
 
   val keystore: KeystoreService = KeystoreService
 
-  private def getBackUrl(summary: Boolean, hasChildAgedTwo: Option[Boolean])(implicit hc: HeaderCarrier): Call = {
-    if(summary) {
-      routes.FreeHoursResultsController.onPageLoad()
-    } else {
-      if(hasChildAgedTwo.isDefined) {
-        routes.ChildAgedTwoController.onPageLoad(false)
-      } else {
-        routes.LocationController.onPageLoad()
-      }
-    }
-  }
-
-
   def onPageLoad(summary: Boolean = false): Action[AnyContent] = withSession { implicit request =>
     keystore.fetch[PageObjects]().map {
       case Some(pageObjects) =>
@@ -104,4 +91,17 @@ class ChildAgedThreeOrFourController @Inject()(val messagesApi: MessagesApi) ext
         Redirect(routes.ChildCareBaseController.onTechnicalDifficulties())
     }
   }
+
+  private def getBackUrl(summary: Boolean, hasChildAgedTwo: Option[Boolean])(implicit hc: HeaderCarrier): Call = {
+    if(summary) {
+      routes.FreeHoursResultsController.onPageLoad()
+    } else {
+      if(hasChildAgedTwo.isDefined) {
+        routes.ChildAgedTwoController.onPageLoad(false)
+      } else {
+        routes.LocationController.onPageLoad()
+      }
+    }
+  }
+
 }

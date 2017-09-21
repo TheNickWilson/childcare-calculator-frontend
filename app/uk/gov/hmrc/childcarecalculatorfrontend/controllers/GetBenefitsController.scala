@@ -33,14 +33,6 @@ class GetBenefitsController @Inject()(val messagesApi: MessagesApi) extends I18n
 
   val keystore: KeystoreService = KeystoreService
 
-  private def getBackUrl(pageObjects: PageObjects): Call = {
-    if(pageObjects.whichOfYouInPaidEmployment == Some(YouPartnerBothEnum.BOTH) && pageObjects.getVouchers == Some(YesNoUnsureEnum.YES)) {
-      routes.WhoGetsVouchersController.onPageLoad()
-    } else {
-      routes.VouchersController.onPageLoad()
-    }
-  }
-
   def onPageLoad: Action[AnyContent] = withSession { implicit request =>
     keystore.fetch[PageObjects]().map {
       case Some(pageObjects) if (pageObjects.livingWithPartner.isDefined) =>
@@ -57,6 +49,42 @@ class GetBenefitsController @Inject()(val messagesApi: MessagesApi) extends I18n
       case ex: Exception =>
         Logger.warn(s"Exception from GetBenefitsController.onPageLoad: ${ex.getMessage}")
         Redirect(routes.ChildCareBaseController.onTechnicalDifficulties())
+    }
+  }
+
+  def onSubmit: Action[AnyContent] = withSession { implicit request =>
+    keystore.fetch[PageObjects].flatMap {
+      case Some(pageObjects) if (pageObjects.livingWithPartner.isDefined) =>
+        val hasPartner = pageObjects.livingWithPartner.get
+        new GetBenefitsForm(hasPartner, messagesApi).form.bindFromRequest().fold(
+          errors =>
+            Future(
+              BadRequest(
+                getBenefits(errors, hasPartner, getBackUrl(pageObjects))
+              )
+            ),
+          success => {
+            val modifiedPageObjects = modifyPageObjects(pageObjects, success.get)
+            keystore.cache(modifiedPageObjects).map { result =>
+              Redirect(getNextPage(pageObjects, hasPartner, success.get))
+            }
+          }
+        )
+      case _ =>
+        Logger.warn("Invalid PageObjects in GetBenefitsController.onSubmit")
+        Future(Redirect(routes.ChildCareBaseController.onTechnicalDifficulties()))
+    } recover {
+      case ex: Exception =>
+        Logger.warn(s"Exception from GetBenefitsController.onSubmit: ${ex.getMessage}")
+        Redirect(routes.ChildCareBaseController.onTechnicalDifficulties())
+    }
+  }
+
+  private def getBackUrl(pageObjects: PageObjects): Call = {
+    if(pageObjects.whichOfYouInPaidEmployment == Some(YouPartnerBothEnum.BOTH) && pageObjects.getVouchers == Some(YesNoUnsureEnum.YES)) {
+      routes.WhoGetsVouchersController.onPageLoad()
+    } else {
+      routes.VouchersController.onPageLoad()
     }
   }
 
@@ -92,31 +120,4 @@ class GetBenefitsController @Inject()(val messagesApi: MessagesApi) extends I18n
     }
   }
 
-  def onSubmit: Action[AnyContent] = withSession { implicit request =>
-    keystore.fetch[PageObjects].flatMap {
-      case Some(pageObjects) if (pageObjects.livingWithPartner.isDefined) =>
-        val hasPartner = pageObjects.livingWithPartner.get
-        new GetBenefitsForm(hasPartner, messagesApi).form.bindFromRequest().fold(
-          errors =>
-            Future(
-              BadRequest(
-                getBenefits(errors, hasPartner, getBackUrl(pageObjects))
-              )
-            ),
-          success => {
-            val modifiedPageObjects = modifyPageObjects(pageObjects, success.get)
-            keystore.cache(modifiedPageObjects).map { result =>
-              Redirect(getNextPage(pageObjects, hasPartner, success.get))
-            }
-          }
-        )
-      case _ =>
-        Logger.warn("Invalid PageObjects in GetBenefitsController.onSubmit")
-        Future(Redirect(routes.ChildCareBaseController.onTechnicalDifficulties()))
-    } recover {
-      case ex: Exception =>
-        Logger.warn(s"Exception from GetBenefitsController.onSubmit: ${ex.getMessage}")
-        Redirect(routes.ChildCareBaseController.onTechnicalDifficulties())
-    }
-  }
 }

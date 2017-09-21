@@ -35,24 +35,6 @@ class MinimumEarningsController @Inject()(val messagesApi: MessagesApi) extends 
 
   val keystore: KeystoreService = KeystoreService
 
-  private def backURL(inPaidEmployment: YouPartnerBothEnum, isPartner: Boolean): Call = {
-    if(isPartner && inPaidEmployment == YouPartnerBothEnum.BOTH) {
-      routes.MinimumEarningsController.onPageLoad(false)
-    } else if(!isPartner && inPaidEmployment == YouPartnerBothEnum.BOTH) {
-      routes.WhatsYourAgeController.onPageLoad(true)
-    } else {
-      routes.WhatsYourAgeController.onPageLoad(isPartner)
-    }
-  }
-
-  private def getMinWageForScreen(pageObjects: PageObjects, isPartner: Boolean): BigDecimal = {
-    if (isPartner) {
-      getMinimumEarningsAmountForAgeRange(pageObjects.household.partner.get.ageRange.map(_.toString))
-    } else {
-      getMinimumEarningsAmountForAgeRange(pageObjects.household.parent.ageRange.map(_.toString))
-    }
-  }
-
   def onPageLoad(isPartner: Boolean): Action[AnyContent] = withSession { implicit request =>
     keystore.fetch[PageObjects]().map {
       case Some(pageObjects)  =>
@@ -104,6 +86,46 @@ class MinimumEarningsController @Inject()(val messagesApi: MessagesApi) extends 
     }
   }
 
+  private def backURL(inPaidEmployment: YouPartnerBothEnum, isPartner: Boolean): Call = {
+    if(isPartner && inPaidEmployment == YouPartnerBothEnum.BOTH) {
+      routes.MinimumEarningsController.onPageLoad(false)
+    } else if(!isPartner && inPaidEmployment == YouPartnerBothEnum.BOTH) {
+      routes.WhatsYourAgeController.onPageLoad(true)
+    } else {
+      routes.WhatsYourAgeController.onPageLoad(isPartner)
+    }
+  }
+
+  private def getMinWageForScreen(pageObjects: PageObjects, isPartner: Boolean): BigDecimal = {
+    if (isPartner) {
+      getMinimumEarningsAmountForAgeRange(pageObjects.household.partner.get.ageRange.map(_.toString))
+    } else {
+      getMinimumEarningsAmountForAgeRange(pageObjects.household.parent.ageRange.map(_.toString))
+    }
+  }
+
+  private def getModifiedPageObjects(minEarnings: Boolean, pageObjects: PageObjects, isPartner: Boolean): PageObjects = {
+    if(isPartner && (defineInPaidEmployment(pageObjects) == YouPartnerBothEnum.PARTNER ||
+      defineInPaidEmployment(pageObjects) == YouPartnerBothEnum.BOTH)) {
+      pageObjects.copy(household = pageObjects.household.copy(
+        partner = pageObjects.household.partner.map(x => x.copy(
+          minimumEarnings = Some(x.minimumEarnings.fold(
+            MinimumEarnings(earnMoreThanNMW = Some(minEarnings)))(_.copy(
+            earnMoreThanNMW = Some(minEarnings), amount = getMinWageForScreen(pageObjects, isPartner))))
+        ))
+      ))
+    } else {
+      pageObjects.copy(household = pageObjects.household.copy(
+        parent = pageObjects.household.parent.copy(
+          minimumEarnings = Some(pageObjects.household.parent.minimumEarnings.fold(
+            MinimumEarnings(earnMoreThanNMW = Some(minEarnings)))(_.copy(
+            earnMoreThanNMW = Some(minEarnings), amount = getMinWageForScreen(pageObjects, isPartner)))
+          )
+        )
+      ))
+    }
+  }
+
   private def getNextPage(pageObjects: PageObjects, minEarnings: Boolean, isPartner: Boolean): Call = {
     val inPaidEmployment: YouPartnerBothEnum = HelperManager.defineInPaidEmployment(pageObjects)
     if(isPartner) {
@@ -148,29 +170,6 @@ class MinimumEarningsController @Inject()(val messagesApi: MessagesApi) extends 
           }
         }
       }
-    }
-
-  }
-
-  private def getModifiedPageObjects(minEarnings: Boolean, pageObjects: PageObjects, isPartner: Boolean): PageObjects = {
-    if(isPartner && (defineInPaidEmployment(pageObjects) == YouPartnerBothEnum.PARTNER ||
-      defineInPaidEmployment(pageObjects) == YouPartnerBothEnum.BOTH)) {
-      pageObjects.copy(household = pageObjects.household.copy(
-        partner = pageObjects.household.partner.map(x => x.copy(
-          minimumEarnings = Some(x.minimumEarnings.fold(
-            MinimumEarnings(earnMoreThanNMW = Some(minEarnings)))(_.copy(
-            earnMoreThanNMW = Some(minEarnings), amount = getMinWageForScreen(pageObjects, isPartner))))
-        ))
-      ))
-    } else {
-      pageObjects.copy(household = pageObjects.household.copy(
-        parent = pageObjects.household.parent.copy(
-          minimumEarnings = Some(pageObjects.household.parent.minimumEarnings.fold(
-            MinimumEarnings(earnMoreThanNMW = Some(minEarnings)))(_.copy(
-            earnMoreThanNMW = Some(minEarnings), amount = getMinWageForScreen(pageObjects, isPartner)))
-          )
-        )
-      ))
     }
 
   }

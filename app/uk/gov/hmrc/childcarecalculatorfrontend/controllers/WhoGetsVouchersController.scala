@@ -36,10 +36,6 @@ class WhoGetsVouchersController @Inject()(val messagesApi: MessagesApi) extends 
 
   val keystore: KeystoreService = KeystoreService
 
-  private def validatePageObjects(pageObjects: PageObjects): Boolean = {
-    pageObjects.livingWithPartner.isDefined
-  }
-
   def onPageLoad: Action[AnyContent] = withSession { implicit request =>
     keystore.fetch[PageObjects]().map {
       case Some(pageObjects) if validatePageObjects(pageObjects) =>
@@ -55,6 +51,40 @@ class WhoGetsVouchersController @Inject()(val messagesApi: MessagesApi) extends 
         Logger.warn(s"Exception from WhoGetsVouchersController.onPageLoad: ${ex.getMessage}")
         Redirect(routes.ChildCareBaseController.onTechnicalDifficulties())
     }
+  }
+
+  def onSubmit: Action[AnyContent] = withSession { implicit request =>
+    keystore.fetch[PageObjects]().flatMap {
+      case Some(pageObjects) if validatePageObjects(pageObjects) =>
+        new WhoGetsVouchersForm(messagesApi).form.bindFromRequest().fold(
+          errors =>
+            Future(
+              BadRequest(
+                whoGetsVouchers(errors)
+              )
+            ),
+          success => {
+            val modifiedPageObjects = modifyPageObject(pageObjects, success.get)
+            keystore.cache(modifiedPageObjects).map {
+              result =>
+                Redirect(
+                  routes.GetBenefitsController.onPageLoad()
+                )
+            }
+          }
+        )
+      case _ =>
+        Logger.warn("Invalid PageObjects in WhoGetsVouchersController.onSubmit")
+        Future(Redirect(routes.ChildCareBaseController.onTechnicalDifficulties()))
+    } recover {
+      case ex: Exception =>
+        Logger.warn(s"Exception from WhoGetsVouchersController.onSubmit: ${ex.getMessage}")
+        Redirect(routes.ChildCareBaseController.onTechnicalDifficulties())
+    }
+  }
+
+  private def validatePageObjects(pageObjects: PageObjects): Boolean = {
+    pageObjects.livingWithPartner.isDefined
   }
 
   private def modifyPageObject(oldPageObject: PageObjects, newWhoGetsVouchers: String): PageObjects = {
@@ -103,35 +133,6 @@ class WhoGetsVouchersController @Inject()(val messagesApi: MessagesApi) extends 
         )
         case YouPartnerBothEnum.BOTH => modified
       }
-    }
-  }
-  def onSubmit: Action[AnyContent] = withSession { implicit request =>
-    keystore.fetch[PageObjects]().flatMap {
-      case Some(pageObjects) if validatePageObjects(pageObjects) =>
-        new WhoGetsVouchersForm(messagesApi).form.bindFromRequest().fold(
-          errors =>
-            Future(
-              BadRequest(
-                whoGetsVouchers(errors)
-              )
-            ),
-          success => {
-            val modifiedPageObjects = modifyPageObject(pageObjects, success.get)
-            keystore.cache(modifiedPageObjects).map {
-              result =>
-                Redirect(
-                  routes.GetBenefitsController.onPageLoad()
-                )
-            }
-          }
-        )
-      case _ =>
-        Logger.warn("Invalid PageObjects in WhoGetsVouchersController.onSubmit")
-        Future(Redirect(routes.ChildCareBaseController.onTechnicalDifficulties()))
-    } recover {
-      case ex: Exception =>
-        Logger.warn(s"Exception from WhoGetsVouchersController.onSubmit: ${ex.getMessage}")
-        Redirect(routes.ChildCareBaseController.onTechnicalDifficulties())
     }
   }
 
