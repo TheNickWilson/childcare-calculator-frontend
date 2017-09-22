@@ -22,6 +22,7 @@ import org.scalatest.BeforeAndAfterEach
 import play.api.i18n.Messages.Implicits._
 import play.api.test.Helpers._
 import uk.gov.hmrc.childcarecalculatorfrontend.ControllersValidator
+import uk.gov.hmrc.childcarecalculatorfrontend.MockBuilder._
 import uk.gov.hmrc.childcarecalculatorfrontend.connectors.EligibilityConnector
 import uk.gov.hmrc.childcarecalculatorfrontend.models.{SchemeResults, Household, LocationEnum, PageObjects}
 import uk.gov.hmrc.childcarecalculatorfrontend.services.KeystoreService
@@ -31,7 +32,7 @@ import scala.concurrent.Future
 
 class FreeHoursResultsControllerSpec extends ControllersValidator with BeforeAndAfterEach {
 
-  val sut = new FreeHoursResultsController(applicationMessagesApi){
+  val freeHoursResultsController = new FreeHoursResultsController(applicationMessagesApi){
     override val keystore: KeystoreService = mock[KeystoreService]
     // TODO: Delete it once we get real results page
     override val connector: EligibilityConnector = mock[EligibilityConnector]
@@ -39,11 +40,11 @@ class FreeHoursResultsControllerSpec extends ControllersValidator with BeforeAnd
 
   override def beforeEach(): Unit = {
     super.beforeEach()
-    reset(sut.keystore)
+    reset(freeHoursResultsController.keystore)
     // TODO: Delete it once we get real results page
-    reset(sut.connector)
+    reset(freeHoursResultsController.connector)
     when(
-      sut.connector.getEligibility(any[Household])(any[HeaderCarrier])
+      freeHoursResultsController.connector.getEligibility(any[Household])(any[HeaderCarrier])
     ).thenReturn(
       Future.successful(
         SchemeResults(
@@ -58,61 +59,49 @@ class FreeHoursResultsControllerSpec extends ControllersValidator with BeforeAnd
   validateUrl(freeHoursResultsPath, List(GET))
 
   "load successfully template when data in keystore" in {
-    when(
-      sut.keystore.fetch[PageObjects]()(any(),any())
-    ).thenReturn(
-      Future.successful(
-        Some(
-          PageObjects(
-            household = Household(location = LocationEnum.ENGLAND),
-            childAgedThreeOrFour = Some(true)
-          )
+
+    setupMocks(freeHoursResultsController.keystore,
+      Some(
+        PageObjects(
+          household = Household(location = LocationEnum.ENGLAND),
+          childAgedThreeOrFour = Some(true)
         )
       )
     )
-    val result = await(sut.onPageLoad(request.withSession(validSession)))
+
+    val result = await(freeHoursResultsController.onPageLoad(request.withSession(validSession)))
     status(result) shouldBe OK
     result.body.contentType.get shouldBe "text/html; charset=utf-8"
   }
 
   "load successfully template when no data in keystore" in {
-    when(
-      sut.keystore.fetch[PageObjects]()(any(),any())
-    ).thenReturn(
-      Future.successful(
-        Some(
-          PageObjects(
-            household = Household(location = LocationEnum.ENGLAND),
-            childAgedThreeOrFour = None
-          )
+    setupMocks(freeHoursResultsController.keystore,
+      Some(
+        PageObjects(
+          household = Household(location = LocationEnum.ENGLAND),
+          childAgedThreeOrFour = None
         )
       )
     )
-    val result = await(sut.onPageLoad(request.withSession(validSession)))
+    val result = await(freeHoursResultsController.onPageLoad(request.withSession(validSession)))
     status(result) shouldBe OK
     result.body.contentType.get shouldBe "text/html; charset=utf-8"
   }
 
   "redirect to error page if there is no data keystore for pageObjects object" in {
-    when(
-      sut.keystore.fetch[PageObjects]()(any(), any())
-    ).thenReturn(
-      Future.successful(None)
-    )
 
-    val result = await(sut.onPageLoad(request.withSession(validSession)))
+    setupMocks(freeHoursResultsController.keystore)
+
+    val result = await(freeHoursResultsController.onPageLoad(request.withSession(validSession)))
     status(result) shouldBe SEE_OTHER
     result.header.headers("Location") shouldBe technicalDifficultiesPath
   }
 
   "redirect to error page if can't connect with keystore" in {
-    when(
-      sut.keystore.fetch[PageObjects]()(any(), any())
-    ).thenReturn(
-      Future.failed(new RuntimeException)
-    )
 
-    val result = await(sut.onPageLoad(request.withSession(validSession)))
+    setupMocksForException(freeHoursResultsController.keystore)
+
+    val result = await(freeHoursResultsController.onPageLoad(request.withSession(validSession)))
     status(result) shouldBe SEE_OTHER
     result.header.headers("Location") shouldBe technicalDifficultiesPath
   }
