@@ -115,12 +115,24 @@ trait MockBuilder {
     * @param controllerKeystore object
     * @return
     */
-  def setupMocksForException(controllerKeystore: KeystoreService) = {
-    when(
-      controllerKeystore.fetch[PageObjects]()(any[HeaderCarrier], any[Reads[PageObjects]])
-    ).thenReturn(
-      Future.failed(new RuntimeException)
-    )
+
+  def setupMocksForException(controllerKeystore: KeystoreService,
+                 cacheException: Boolean = false) = {
+
+    if (cacheException) {
+      when(
+        controllerKeystore.cache[PageObjects](any[PageObjects])(any[HeaderCarrier], any[Format[PageObjects]])
+      ).thenReturn(
+          Future.failed(new RuntimeException)
+        )
+    } else {
+      when(
+        controllerKeystore.fetch[PageObjects]()(any[HeaderCarrier], any[Reads[PageObjects]])
+      ).thenReturn(
+          Future.failed(new RuntimeException)
+        )
+    }
+
   }
 
 }

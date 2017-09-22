@@ -26,18 +26,20 @@ import uk.gov.hmrc.childcarecalculatorfrontend.ControllersValidator
 import uk.gov.hmrc.childcarecalculatorfrontend.models.{Household, LocationEnum, PageObjects}
 import uk.gov.hmrc.childcarecalculatorfrontend.services.KeystoreService
 import uk.gov.hmrc.play.http.HeaderCarrier
+import uk.gov.hmrc.childcarecalculatorfrontend.MockBuilder._
+
 
 import scala.concurrent.Future
 
 class ChildAgedTwoControllerSpec extends ControllersValidator with BeforeAndAfterEach {
 
-  val sut = new ChildAgedTwoController(applicationMessagesApi) {
+  val childAgedTwoController = new ChildAgedTwoController(applicationMessagesApi) {
     override val keystore: KeystoreService = mock[KeystoreService]
   }
 
   override def beforeEach(): Unit = {
     super.beforeEach()
-    reset(sut.keystore)
+    reset(childAgedTwoController.keystore)
   }
 
   validateUrl(childAgedTwoPath)
@@ -52,67 +54,41 @@ class ChildAgedTwoControllerSpec extends ControllersValidator with BeforeAndAfte
     "onPageLoad is called" should {
 
       "load template successfully if there is no data in keystore" in {
-        when(
-          sut.keystore.fetch[PageObjects]()(any[HeaderCarrier], any[Reads[PageObjects]])
-        ).thenReturn(
-          Future.successful(
-            Some(buildPageObjects(childAgedTwo = None))
-          )
-        )
+        setupMocks(childAgedTwoController.keystore, Some(buildPageObjects(childAgedTwo = None)))
 
-        val result = await(sut.onPageLoad(false)(request.withSession(validSession)))
+        val result = await(childAgedTwoController.onPageLoad(false)(request.withSession(validSession)))
         status(result) shouldBe OK
         result.body.contentType.get shouldBe "text/html; charset=utf-8"
       }
 
       "load template successfully if there is data in keystore" in {
-        when(
-          sut.keystore.fetch[PageObjects]()(any[HeaderCarrier], any[Reads[PageObjects]])
-        ).thenReturn(
-          Future.successful(
-            Some(buildPageObjects(childAgedTwo = Some(true)))
-          )
-        )
+        setupMocks(childAgedTwoController.keystore, Some(buildPageObjects(childAgedTwo = Some(true))))
 
-        val result = await(sut.onPageLoad(false)(request.withSession(validSession)))
+        val result = await(childAgedTwoController.onPageLoad(false)(request.withSession(validSession)))
         status(result) shouldBe OK
         result.body.contentType.get shouldBe "text/html; charset=utf-8"
       }
 
       "load template successfully if there is data in keystore and summary is true" in {
-        when(
-          sut.keystore.fetch[PageObjects]()(any[HeaderCarrier], any[Reads[PageObjects]])
-        ).thenReturn(
-          Future.successful(
-            Some(buildPageObjects(childAgedTwo = Some(true)))
-          )
-        )
+        setupMocks(childAgedTwoController.keystore, Some(buildPageObjects(childAgedTwo = Some(true))))
 
-        val result = await(sut.onPageLoad(true)(request.withSession(validSession)))
+        val result = await(childAgedTwoController.onPageLoad(true)(request.withSession(validSession)))
         status(result) shouldBe OK
         result.body.contentType.get shouldBe "text/html; charset=utf-8"
       }
 
       "redirect to error page if there is no data keystore for household object" in {
-        when(
-          sut.keystore.fetch[PageObjects]()(any[HeaderCarrier], any[Reads[PageObjects]])
-        ).thenReturn(
-          Future.successful(None)
-        )
+        setupMocks(childAgedTwoController.keystore)
 
-        val result = await(sut.onPageLoad(false)(request.withSession(validSession)))
+        val result = await(childAgedTwoController.onPageLoad(false)(request.withSession(validSession)))
         status(result) shouldBe SEE_OTHER
         result.header.headers("Location") shouldBe technicalDifficultiesPath
       }
 
       "redirect to error page if can't connect with keystore" in {
-        when(
-          sut.keystore.fetch[PageObjects]()(any[HeaderCarrier], any[Reads[PageObjects]])
-        ).thenReturn(
-          Future.failed(new RuntimeException)
-        )
+        setupMocksForException(childAgedTwoController.keystore)
 
-        val result = await(sut.onPageLoad(false)(request.withSession(validSession)))
+        val result = await(childAgedTwoController.onPageLoad(false)(request.withSession(validSession)))
         status(result) shouldBe SEE_OTHER
         result.header.headers("Location") shouldBe technicalDifficultiesPath
       }
@@ -123,17 +99,10 @@ class ChildAgedTwoControllerSpec extends ControllersValidator with BeforeAndAfte
 
       "there are errors" should {
         "load same template and return BAD_REQUEST" in {
-
-          when(
-            sut.keystore.fetch[PageObjects]()(any[HeaderCarrier], any[Reads[PageObjects]])
-          ).thenReturn(
-            Future.successful(
-              Some(buildPageObjects(childAgedTwo = None))
-            )
-          )
+          setupMocks(childAgedTwoController.keystore, Some(buildPageObjects(childAgedTwo = None)))
 
           val result = await(
-            sut.onSubmit(
+            childAgedTwoController.onSubmit(
               request
                 .withFormUrlEncodedBody(childAgedTwoKey -> "")
                 .withSession(validSession)
@@ -145,24 +114,15 @@ class ChildAgedTwoControllerSpec extends ControllersValidator with BeforeAndAfte
       }
 
       "saving in keystore is successful" in {
-        when(
-          sut.keystore.fetch[PageObjects]()(any[HeaderCarrier], any[Reads[PageObjects]])
-        ).thenReturn(
-          Future.successful(
-            Some(buildPageObjects(childAgedTwo = None))
-          )
-        )
 
-        when(
-          sut.keystore.cache[PageObjects](any[PageObjects])(any[HeaderCarrier], any[Format[PageObjects]])
-        ).thenReturn(
-          Future.successful(
-            Some(buildPageObjects(childAgedTwo = Some(true)))
-          )
-        )
+        setupMocks(childAgedTwoController.keystore,
+          modelToFetch = Some(buildPageObjects(childAgedTwo = None)),
+          modelToStore = Some(buildPageObjects(childAgedTwo = Some(true))),
+          storePageObjects = true)
+
 
         val result = await(
-          sut.onSubmit(
+          childAgedTwoController.onSubmit(
             request
               .withFormUrlEncodedBody(childAgedTwoKey -> "true")
               .withSession(validSession)
@@ -175,22 +135,13 @@ class ChildAgedTwoControllerSpec extends ControllersValidator with BeforeAndAfte
 
     "connecting with keystore fails" should {
       s"redirect to ${technicalDifficultiesPath}" in {
-        when(
-          sut.keystore.fetch[PageObjects]()(any[HeaderCarrier], any[Reads[PageObjects]])
-        ).thenReturn(
-          Future.successful(
-            Some(buildPageObjects(childAgedTwo = None))
-          )
-        )
 
-        when(
-          sut.keystore.cache[PageObjects](any[PageObjects])(any[HeaderCarrier], any[Format[PageObjects]])
-        ).thenReturn(
-          Future.failed(new RuntimeException)
-        )
+        setupMocks(childAgedTwoController.keystore, Some(buildPageObjects(childAgedTwo = None)))
+
+        setupMocksForException(childAgedTwoController.keystore, cacheException = true)
 
         val result = await(
-          sut.onSubmit(
+          childAgedTwoController.onSubmit(
             request
               .withFormUrlEncodedBody(childAgedTwoKey -> "false")
               .withSession(validSession)
@@ -203,16 +154,11 @@ class ChildAgedTwoControllerSpec extends ControllersValidator with BeforeAndAfte
 
     "there is no data in keystore for PageObjects object" should {
       s"redirect to ${technicalDifficultiesPath}" in {
-        when(
-          sut.keystore.fetch[PageObjects]()(any[HeaderCarrier], any[Reads[PageObjects]])
-        ).thenReturn(
-          Future.successful(
-            None
-          )
-        )
+
+        setupMocks(childAgedTwoController.keystore)
 
         val result = await(
-          sut.onSubmit(
+          childAgedTwoController.onSubmit(
             request
               .withFormUrlEncodedBody(childAgedTwoKey -> "false")
               .withSession(validSession)

@@ -126,7 +126,7 @@ class SelfEmployedControllerSpec extends ControllersValidator with BeforeAndAfte
 
       "connecting with keystore fails" in {
         setupMocks(selfEmployedController.keystore, modelToFetch = Some(buildPageObjects(true, None)))
-        setupMocksForException(selfEmployedController.keystore)
+        setupMocksForException(selfEmployedController.keystore, cacheException = true)
 
         val result = await(
           selfEmployedController.onSubmit(true)(
@@ -202,7 +202,8 @@ class SelfEmployedControllerSpec extends ControllersValidator with BeforeAndAfte
 
           setupMocks(selfEmployedController.keystore,
             modelToFetch = Some(model),
-            modelToStore = Some(modelToStore), storePageObjects = true)
+            modelToStore = Some(modelToStore),
+            storePageObjects = true)
 
           val result = await(
             selfEmployedController.onSubmit(true)(
