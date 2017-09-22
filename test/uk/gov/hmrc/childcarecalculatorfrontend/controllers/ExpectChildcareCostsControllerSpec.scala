@@ -25,65 +25,45 @@ import uk.gov.hmrc.childcarecalculatorfrontend.services.KeystoreService
 import uk.gov.hmrc.childcarecalculatorfrontend.ControllersValidator
 import org.mockito.Mockito._
 import org.mockito.Matchers._
-
+import uk.gov.hmrc.childcarecalculatorfrontend.MockBuilder._
 import scala.concurrent.Future
 import org.scalatest.prop.TableDrivenPropertyChecks._
 import org.scalatest.prop.Tables.Table
 
 class ExpectChildcareCostsControllerSpec extends ControllersValidator {
 
-  val sut = new ExpectChildcareCostsController(applicationMessagesApi) {
+  val expectChildcareCostsController = new ExpectChildcareCostsController(applicationMessagesApi) {
     override val keystore = mock[KeystoreService]
   }
-
-  validateUrl(expectChildcareCostsPath)
-
-  def buildPageObjects(location: LocationEnum =  LocationEnum.ENGLAND,
-                       childAgedTwo: Option[Boolean] = None,
-                       childAgedThreeOrFour: Option[Boolean] = None,
-                       expectChildcareCosts: Option[Boolean] =  None): PageObjects = PageObjects(household = Household(
-    location = location),
-    childAgedTwo = childAgedTwo,
-    childAgedThreeOrFour = childAgedThreeOrFour,
-    expectChildcareCosts =  expectChildcareCosts
-  )
 
   "calling onPageLoad" should {
     "load successfully the ExpectChildcareCosts page" when {
       "there is data in session" in {
-        when(
-          sut.keystore.fetch[PageObjects]()(any(), any())
-        ).thenReturn(
-          Future.successful(
-            Some(
-              buildPageObjects(
-                location = LocationEnum.ENGLAND,
-                expectChildcareCosts = Some(true)
-              )
-            )
-          )
-        )
 
-        val result = await(sut.onPageLoad(false)(request.withSession(validSession)))
+        setupMocks(expectChildcareCostsController.keystore,
+          Some(
+            buildPageObjects(
+              location = LocationEnum.ENGLAND,
+              expectChildcareCosts = Some(true)
+            )
+          ))
+
+        val result = await(expectChildcareCostsController.onPageLoad(false)(request.withSession(validSession)))
         status(result) shouldBe OK
         result.body.contentType.get shouldBe "text/html; charset=utf-8"
       }
 
       "there is no data in session" in {
-        when(
-          sut.keystore.fetch[PageObjects]()(any(), any())
-        ).thenReturn(
-          Future.successful(
-            Some(
-              buildPageObjects(
-                location = LocationEnum.ENGLAND,
-                expectChildcareCosts = None
-              )
-            )
-          )
-        )
 
-        val result = await(sut.onPageLoad(false)(request.withSession(validSession)))
+        setupMocks(expectChildcareCostsController.keystore,
+          Some(
+            buildPageObjects(
+              location = LocationEnum.ENGLAND,
+              expectChildcareCosts = None
+            )
+          ))
+
+        val result = await(expectChildcareCostsController.onPageLoad(false)(request.withSession(validSession)))
         status(result) shouldBe OK
         result.body.contentType.get shouldBe "text/html; charset=utf-8"
       }
@@ -91,20 +71,16 @@ class ExpectChildcareCostsControllerSpec extends ControllersValidator {
 
     "contain back url to free-hours-results" when {
       s"summary is true" in {
-        when(
-          sut.keystore.fetch[PageObjects]()(any(), any())
-        ).thenReturn(
-          Future.successful(
-            Some(
-              buildPageObjects(
-                location = LocationEnum.ENGLAND,
-                expectChildcareCosts = Some(true)
-              )
-            )
-          )
-        )
 
-        val result = await(sut.onPageLoad(true)(request.withSession(validSession)))
+        setupMocks(expectChildcareCostsController.keystore,
+          Some(
+            buildPageObjects(
+              location = LocationEnum.ENGLAND,
+              expectChildcareCosts = Some(true)
+            )
+          ))
+
+        val result = await(expectChildcareCostsController.onPageLoad(true)(request.withSession(validSession)))
         status(result) shouldBe OK
         result.body.contentType.get shouldBe "text/html; charset=utf-8"
         val content = Jsoup.parse(bodyOf(result))
@@ -114,25 +90,19 @@ class ExpectChildcareCostsControllerSpec extends ControllersValidator {
 
     s"redirect to technical difficulties page (${technicalDifficultiesPath})" when {
       "there is no data in keystore for PageObjects object" in {
-        when(
-          sut.keystore.fetch[PageObjects]()(any(),any())
-        ).thenReturn(
-          Future.successful(None)
-        )
 
-        val result = await(sut.onPageLoad(false)(request.withSession(validSession)))
+        setupMocks(expectChildcareCostsController.keystore)
+
+        val result = await(expectChildcareCostsController.onPageLoad(false)(request.withSession(validSession)))
         status(result) shouldBe SEE_OTHER
         result.header.headers("Location") shouldBe technicalDifficultiesPath
       }
 
       "an exception is thrown from keystore service" in {
-        when(
-          sut.keystore.fetch[PageObjects]()(any(),any())
-        ).thenReturn(
-          Future.failed(new RuntimeException)
-        )
 
-        val result = await(sut.onPageLoad(false)(request.withSession(validSession)))
+        setupMocksForException(expectChildcareCostsController.keystore)
+
+        val result = await(expectChildcareCostsController.onPageLoad(false)(request.withSession(validSession)))
         status(result) shouldBe SEE_OTHER
         result.header.headers("Location") shouldBe technicalDifficultiesPath
       }
@@ -142,20 +112,16 @@ class ExpectChildcareCostsControllerSpec extends ControllersValidator {
   "calling onSubmit" should {
     "load ExpectChildcareCosts and display errors" when {
       "invalid data is submitted" in {
-        when(
-          sut.keystore.fetch[PageObjects]()(any(),any())
-        ).thenReturn(
-          Future.successful(
-            Some(
-              buildPageObjects(
-                location = LocationEnum.ENGLAND,
-                expectChildcareCosts = Some(true)
-              )
-            )
-          )
-        )
 
-        val result = await(sut.onSubmit(request.withSession(validSession)))
+        setupMocks(expectChildcareCostsController.keystore,
+          Some(
+            buildPageObjects(
+              location = LocationEnum.ENGLAND,
+              expectChildcareCosts = Some(true)
+            )
+          ))
+
+        val result = await(expectChildcareCostsController.onSubmit(request.withSession(validSession)))
         status(result) shouldBe BAD_REQUEST
         result.body.contentType.get shouldBe "text/html; charset=utf-8"
       }
@@ -169,7 +135,8 @@ class ExpectChildcareCostsControllerSpec extends ControllersValidator {
             location = LocationEnum.ENGLAND,
             expectChildcareCosts = Some(true)
           )
-          val keystoreObject: PageObjects = initialObject.copy(
+
+          val model: PageObjects = initialObject.copy(
             household = initialObject.household.copy(
               partner = Some(Claimant())
             ),
@@ -178,15 +145,7 @@ class ExpectChildcareCostsControllerSpec extends ControllersValidator {
             paidOrSelfEmployed = Some(true)
           )
 
-          when(
-            sut.keystore.fetch[PageObjects]()(any(),any())
-          ).thenReturn(
-            Future.successful(
-              Some(keystoreObject)
-            )
-          )
-
-          val modifiedObject: PageObjects = keystoreObject.copy(
+          val modelToStore: PageObjects = model.copy(
             expectChildcareCosts = Some(false),
             household = initialObject.household.copy(
               partner = None
@@ -196,18 +155,13 @@ class ExpectChildcareCostsControllerSpec extends ControllersValidator {
             paidOrSelfEmployed = None
           )
 
-          when(
-            sut.keystore.cache[PageObjects](org.mockito.Matchers.eq(modifiedObject))(any(), any())
-          ).thenReturn(
-            Future.successful(
-              Some(
-                modifiedObject
-              )
-            )
-          )
+          setupMocks(expectChildcareCostsController.keystore,
+            modelToFetch = Some(model),
+            modelToStore = Some(modelToStore),
+            storePageObjects = true)
 
           val result = await(
-            sut.onSubmit(
+            expectChildcareCostsController.onSubmit(
               request
                 .withFormUrlEncodedBody(expectChildcareCostsKey -> "false")
                 .withSession(validSession)
@@ -224,7 +178,7 @@ class ExpectChildcareCostsControllerSpec extends ControllersValidator {
             location = LocationEnum.ENGLAND,
             expectChildcareCosts = Some(true)
           )
-          val keystoreObject: PageObjects = initialObject.copy(
+          val model: PageObjects = initialObject.copy(
             household = initialObject.household.copy(
               partner = Some(Claimant())
             ),
@@ -233,26 +187,13 @@ class ExpectChildcareCostsControllerSpec extends ControllersValidator {
             paidOrSelfEmployed = Some(true)
           )
 
-          when(
-            sut.keystore.fetch[PageObjects]()(any(),any())
-          ).thenReturn(
-            Future.successful(
-              Some(keystoreObject)
-            )
-          )
-
-          when(
-            sut.keystore.cache[PageObjects](org.mockito.Matchers.eq(keystoreObject))(any(), any())
-          ).thenReturn(
-            Future.successful(
-              Some(
-                keystoreObject
-              )
-            )
-          )
+          setupMocks(expectChildcareCostsController.keystore,
+            modelToFetch = Some(model),
+            modelToStore = Some(model),
+            storePageObjects = true)
 
           val result = await(
-            sut.onSubmit(
+            expectChildcareCostsController.onSubmit(
               request
                 .withFormUrlEncodedBody(expectChildcareCostsKey -> "true")
                 .withSession(validSession)
@@ -267,7 +208,7 @@ class ExpectChildcareCostsControllerSpec extends ControllersValidator {
             location = LocationEnum.ENGLAND,
             expectChildcareCosts = Some(false)
           )
-          val keystoreObject: PageObjects = initialObject.copy(
+          val model: PageObjects = initialObject.copy(
             household = initialObject.household.copy(
               partner = Some(Claimant())
             ),
@@ -276,30 +217,17 @@ class ExpectChildcareCostsControllerSpec extends ControllersValidator {
             paidOrSelfEmployed = Some(true)
           )
 
-          when(
-            sut.keystore.fetch[PageObjects]()(any(),any())
-          ).thenReturn(
-            Future.successful(
-              Some(keystoreObject)
-            )
-          )
-
-          val modifiedObject: PageObjects = keystoreObject.copy(
+          val modelToStore: PageObjects = model.copy(
             expectChildcareCosts = Some(true)
           )
 
-          when(
-            sut.keystore.cache[PageObjects](org.mockito.Matchers.eq(modifiedObject))(any(), any())
-          ).thenReturn(
-            Future.successful(
-              Some(
-                modifiedObject
-              )
-            )
-          )
+          setupMocks(expectChildcareCostsController.keystore,
+            modelToFetch = Some(model),
+            modelToStore = Some(modelToStore),
+            storePageObjects = true)
 
           val result = await(
-            sut.onSubmit(
+            expectChildcareCostsController.onSubmit(
               request
                 .withFormUrlEncodedBody(expectChildcareCostsKey -> "true")
                 .withSession(validSession)
@@ -362,10 +290,8 @@ class ExpectChildcareCostsControllerSpec extends ControllersValidator {
 
             s"user lives in ${location.toString}, has child aged 2 = ${hasChildAged2}, has child aged 3 or 4 = ${hasChildAges3Or4} and has cost = ${hasCost}" in {
 
-              when(
-                sut.keystore.fetch[PageObjects]()(any(),any())
-              ).thenReturn(
-                Future.successful(
+              setupMocks(expectChildcareCostsController.keystore,
+                modelToFetch =
                   Some(
                     buildPageObjects(
                       location = location,
@@ -373,14 +299,8 @@ class ExpectChildcareCostsControllerSpec extends ControllersValidator {
                       childAgedThreeOrFour = Some(hasChildAges3Or4),
                       expectChildcareCosts = None
                     )
-                  )
-                )
-              )
-
-              when(
-                sut.keystore.cache[PageObjects](any[PageObjects]())(any(), any())
-              ).thenReturn(
-                Future.successful(
+                  ),
+                modelToStore =
                   Some(
                     buildPageObjects(
                       location = location,
@@ -388,12 +308,11 @@ class ExpectChildcareCostsControllerSpec extends ControllersValidator {
                       childAgedThreeOrFour = Some(hasChildAges3Or4),
                       expectChildcareCosts = Some(hasCost)
                     )
-                  )
-                )
-              )
+                  ),
+                storePageObjects = true)
 
               val result = await(
-                sut.onSubmit(
+                expectChildcareCostsController.onSubmit(
                   request
                     .withFormUrlEncodedBody(expectChildcareCostsKey -> hasCost.toString)
                     .withSession(validSession)
@@ -410,29 +329,20 @@ class ExpectChildcareCostsControllerSpec extends ControllersValidator {
         s"go to technical difficulties page (${technicalDifficultiesPath})" when {
           "an exception is thrown while saving data" in {
 
-            when(
-              sut.keystore.fetch[PageObjects]()(any(),any())
-            ).thenReturn(
-              Future.successful(
-                Some(
-                  buildPageObjects(
-                    location = LocationEnum.ENGLAND,
-                    childAgedTwo = Some(true),
-                    childAgedThreeOrFour = Some(true),
-                    expectChildcareCosts = None
-                  )
+            setupMocks(expectChildcareCostsController.keystore,
+              Some(
+                buildPageObjects(
+                  location = LocationEnum.ENGLAND,
+                  childAgedTwo = Some(true),
+                  childAgedThreeOrFour = Some(true),
+                  expectChildcareCosts = None
                 )
-              )
-            )
+              ))
 
-            when(
-              sut.keystore.cache[PageObjects](any[PageObjects]())(any(), any())
-            ).thenReturn(
-              Future.failed(new RuntimeException)
-            )
+            setupMocksForException(expectChildcareCostsController.keystore, cacheException = true)
 
             val result = await(
-              sut.onSubmit(
+              expectChildcareCostsController.onSubmit(
                 request
                   .withFormUrlEncodedBody(expectChildcareCostsKey -> "true")
                   .withSession(validSession)
@@ -443,14 +353,10 @@ class ExpectChildcareCostsControllerSpec extends ControllersValidator {
           }
 
           "an exception is thrown while looking for data" in {
-            when(
-              sut.keystore.fetch[PageObjects]()(any(),any())
-            ).thenReturn(
-              Future.failed(new RuntimeException)
-            )
+            setupMocksForException(expectChildcareCostsController.keystore)
 
             val result = await(
-              sut.onSubmit(
+              expectChildcareCostsController.onSubmit(
                 request
                   .withFormUrlEncodedBody(expectChildcareCostsKey -> "true")
                   .withSession(validSession)
@@ -461,14 +367,11 @@ class ExpectChildcareCostsControllerSpec extends ControllersValidator {
           }
 
           "there is no data in keystore for PageObjects object" in {
-            when(
-              sut.keystore.fetch[PageObjects]()(any(),any())
-            ).thenReturn(
-              Future.successful(None)
-            )
+
+            setupMocks(expectChildcareCostsController.keystore)
 
             val result = await(
-              sut.onSubmit(
+              expectChildcareCostsController.onSubmit(
                 request
                   .withFormUrlEncodedBody(expectChildcareCostsKey -> "true")
                   .withSession(validSession)
@@ -480,7 +383,17 @@ class ExpectChildcareCostsControllerSpec extends ControllersValidator {
         }
       }
     }
-
-
   }
+  
+  validateUrl(expectChildcareCostsPath)
+
+  def buildPageObjects(location: LocationEnum =  LocationEnum.ENGLAND,
+                       childAgedTwo: Option[Boolean] = None,
+                       childAgedThreeOrFour: Option[Boolean] = None,
+                       expectChildcareCosts: Option[Boolean] =  None): PageObjects = PageObjects(household = Household(
+    location = location),
+    childAgedTwo = childAgedTwo,
+    childAgedThreeOrFour = childAgedThreeOrFour,
+    expectChildcareCosts =  expectChildcareCosts
+  )
 }
