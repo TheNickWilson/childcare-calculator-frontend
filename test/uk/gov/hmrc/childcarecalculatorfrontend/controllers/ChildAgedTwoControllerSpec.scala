@@ -16,7 +16,6 @@
 
 package uk.gov.hmrc.childcarecalculatorfrontend.controllers
 
-import org.mockito.Matchers._
 import org.mockito.Mockito._
 import org.scalatest.BeforeAndAfterEach
 import play.api.i18n.Messages.Implicits._
@@ -26,8 +25,6 @@ import uk.gov.hmrc.childcarecalculatorfrontend.models.{Household, LocationEnum, 
 import uk.gov.hmrc.childcarecalculatorfrontend.services.KeystoreService
 import uk.gov.hmrc.childcarecalculatorfrontend.MockBuilder._
 
-
-import scala.concurrent.Future
 
 class ChildAgedTwoControllerSpec extends ControllersValidator with BeforeAndAfterEach {
 
@@ -117,7 +114,6 @@ class ChildAgedTwoControllerSpec extends ControllersValidator with BeforeAndAfte
           modelToFetch = Some(buildPageObjects(childAgedTwo = None)),
           modelToStore = Some(buildPageObjects(childAgedTwo = Some(true))),
           storePageObjects = true)
-
 
         val result = await(
           childAgedTwoController.onSubmit(
